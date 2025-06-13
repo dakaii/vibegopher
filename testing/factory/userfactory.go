@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dakaii/graphyy/internal/domain"
-	"github.com/dakaii/graphyy/internal/repository/userrepo"
+	"github.com/dakaii/vibegopher/internal/domain"
+	"github.com/dakaii/vibegopher/internal/repository/userrepo"
 	"github.com/google/uuid"
 	"github.com/jaswdr/faker/v2"
 )

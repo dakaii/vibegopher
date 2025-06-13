@@ -1,8 +1,8 @@
 package user
 
 import (
-	"github.com/dakaii/graphyy/internal/domain"
-	"github.com/dakaii/graphyy/internal/repository/userrepo"
+	"github.com/dakaii/vibegopher/internal/domain"
+	"github.com/dakaii/vibegopher/internal/repository/userrepo"
 )
 
 // declaring the repository interface in the controller package allows us to easily swap out the actual implementation, enforcing loose coupling.

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dakaii/graphyy/internal/domain"
-	"github.com/dakaii/graphyy/internal/envvar"
+	"github.com/dakaii/vibegopher/internal/domain"
+	"github.com/dakaii/vibegopher/internal/envvar"
 	"github.com/dgrijalva/jwt-go"
 )
 

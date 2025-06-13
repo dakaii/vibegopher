@@ -1,101 +1,70 @@
 package factory
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/dakaii/vibegopher/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jaswdr/faker/v2"
 )
 
-// Example Post entity (this would typically be in your domain package)
-type Post struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	AuthorID  uuid.UUID `json:"author_id"`
-}
-
-// BuildPost creates a post entity with faker data without saving to database
-func BuildPost() Post {
+// BuildPost creates a post entity with faker data
+func BuildPost(userID uuid.UUID) domain.Post {
 	fake := faker.New()
-
-	return Post{
+	return domain.Post{
 		ID:        uuid.New(),
-		Title:     fake.Lorem().Sentence(5),
-		Content:   fake.Lorem().Paragraph(3),
-		AuthorID:  uuid.New(),
+		Content:   fake.Lorem().Sentence(10),
+		UserID:    userID,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 }
 
-// BuildPostWithAuthor creates a post entity with a specific author ID
-func BuildPostWithAuthor(authorID uuid.UUID) Post {
-	fake := faker.New()
-
-	return Post{
-		ID:        uuid.New(),
-		Title:     fake.Lorem().Sentence(5),
-		Content:   fake.Lorem().Paragraph(3),
-		AuthorID:  authorID,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
+// BuildPostWithContent creates a post entity with specific content
+func BuildPostWithContent(userID uuid.UUID, content string) domain.Post {
+	post := BuildPost(userID)
+	post.Content = content
+	return post
 }
 
-// BuildPosts creates multiple post entities with faker data without saving to database
-func BuildPosts(count int) []Post {
-	posts := make([]Post, count)
-	fake := faker.New()
-
+// BuildPosts creates multiple post entities with faker data
+func BuildPosts(userID uuid.UUID, count int) []domain.Post {
+	posts := make([]domain.Post, count)
 	for i := 0; i < count; i++ {
-		posts[i] = Post{
-			ID:        uuid.New(),
-			Title:     fake.Lorem().Sentence(5),
-			Content:   fake.Lorem().Paragraph(3),
-			AuthorID:  uuid.New(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
+		posts[i] = BuildPostWithContent(userID, fmt.Sprintf("Test post content %d", i+1))
 	}
-
 	return posts
 }
 
 // CreatePost creates and saves a single post to the database
-func CreatePost() Post {
-	post := BuildPost()
-
-	savedPost, err := Save(post)
-	if err != nil {
-		panic(err)
-	}
-
-	return savedPost
+func CreatePost(userID uuid.UUID) domain.Post {
+	return createPostWithContent(userID, "Test post content")
 }
 
-// CreatePostWithAuthor creates and saves a post with a specific author
-func CreatePostWithAuthor(authorID uuid.UUID) Post {
-	post := BuildPostWithAuthor(authorID)
-
-	savedPost, err := Save(post)
-	if err != nil {
-		panic(err)
-	}
-
-	return savedPost
+// CreatePostWithContent creates and saves a post with specific content
+func CreatePostWithContent(userID uuid.UUID, content string) domain.Post {
+	return createPostWithContent(userID, content)
 }
 
 // CreatePosts creates and saves multiple posts to the database
-func CreatePosts(count int) []Post {
-	posts := BuildPosts(count)
+func CreatePosts(userID uuid.UUID, count int) []domain.Post {
+	posts := make([]domain.Post, count)
+	for i := 0; i < count; i++ {
+		posts[i] = createPostWithContent(userID, fmt.Sprintf("Test post content %d", i+1))
+	}
+	return posts
+}
 
-	savedPosts, err := SaveMany(posts)
+// Helper function to create and save a post
+func createPostWithContent(userID uuid.UUID, content string) domain.Post {
+	post := BuildPostWithContent(userID, content)
+
+	// Save to database
+	savedPost, err := Save(post)
 	if err != nil {
 		panic(err)
 	}
 
-	return savedPosts
+	return savedPost
 }

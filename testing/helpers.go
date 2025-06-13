@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/dakaii/graphyy/internal/envvar"
+	"github.com/dakaii/vibegopher/internal/envvar"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

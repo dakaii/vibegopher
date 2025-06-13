@@ -3,8 +3,8 @@ package user
 import (
 	"errors"
 
-	"github.com/dakaii/graphyy/internal/auth"
-	"github.com/dakaii/graphyy/internal/domain"
+	"github.com/dakaii/vibegopher/internal/auth"
+	"github.com/dakaii/vibegopher/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
 

@@ -1,7 +1,7 @@
 package factory
 
 import (
-	"github.com/dakaii/graphyy/internal/database"
+	"github.com/dakaii/vibegopher/internal/database"
 )
 
 // Save saves any entity to the database using GORM

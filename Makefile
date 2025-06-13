@@ -10,10 +10,10 @@ migrate-test-db:
 	docker-compose -f docker-compose.test.yml run --rm goose-test bash -c "goose -dir ./migrations up"
 
 create-dev-db:
-	docker exec -it graphyy-postgresql-dev1 psql -U postgres -c "CREATE DATABASE graphyy_development;"
+	docker exec -it vibegopher-postgresql-dev1 psql -U postgres -c "CREATE DATABASE vibegopher_development;"
 
 drop-dev-db:
-	docker exec -it graphyy-postgresql-dev1 psql -U postgres -c "DROP DATABASE graphyy_development;"
+	docker exec -it vibegopher-postgresql-dev1 psql -U postgres -c "DROP DATABASE vibegopher_development;"
 
 build:
 	env GOOS=linux GOARCH=386 go build -o build ./cmd/server/main.go
@@ -30,7 +30,7 @@ test:
 	docker-compose -f docker-compose.test.yml rm -fsv
 
 clear-test:
-	docker volume remove graphyy_postgres_test_data
+	docker volume remove vibegopher_postgres_test_data
 
 binary:
 	env GOOS=linux GOARCH=386 go build -o build ./cmd/server/main.go

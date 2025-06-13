@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/dakaii/graphyy/internal/api"
-	"github.com/dakaii/graphyy/internal/controller"
-	"github.com/dakaii/graphyy/internal/database"
-	"github.com/dakaii/graphyy/internal/envvar"
-	"github.com/dakaii/graphyy/internal/repository"
+	"github.com/dakaii/vibegopher/internal/api"
+	"github.com/dakaii/vibegopher/internal/controller"
+	"github.com/dakaii/vibegopher/internal/database"
+	"github.com/dakaii/vibegopher/internal/envvar"
+	"github.com/dakaii/vibegopher/internal/repository"
 )
 
 func main() {

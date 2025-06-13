@@ -1,6 +1,6 @@
-module github.com/dakaii/graphyy
+module github.com/dakaii/vibegopher
 
-go 1.22
+go 1.24
 
 require (
 	github.com/bluele/factory-go v0.0.1
