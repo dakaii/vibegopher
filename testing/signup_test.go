@@ -3,40 +3,29 @@ package testing
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/dakaii/graphyy/internal/api"
 	"github.com/dakaii/graphyy/internal/controller"
 	"github.com/dakaii/graphyy/internal/database"
 	"github.com/dakaii/graphyy/internal/domain"
 	"github.com/dakaii/graphyy/internal/repository"
-	"github.com/dakaii/graphyy/internal/view"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
 type SignUpTestSuite struct {
 	suite.Suite
-	rr      *httptest.ResponseRecorder
-	handler http.Handler
-}
-
-type SignUpResponse struct {
-	Data struct {
-		Signup domain.AuthToken `json:"signup"`
-	} `json:"data"`
+	router http.Handler
 }
 
 func (suite *SignUpTestSuite) SetupTest() {
-	db := database.GetDatabase()
+	db := database.GetDatabase(true)
 	repos := repository.InitRepositories(db)
 	controllers := controller.InitControllers(repos)
-	schema := view.Schema(controllers)
-	suite.handler = view.GraphqlHandlfunc(schema)
-
-	suite.rr = httptest.NewRecorder()
+	suite.router = api.SetupRouter(controllers)
 }
 
 func (suite *SignUpTestSuite) TearDownTest() {
@@ -44,26 +33,53 @@ func (suite *SignUpTestSuite) TearDownTest() {
 }
 
 func (suite *SignUpTestSuite) TestCreateUser() {
-	username := "testuser"
-	password := "password"
+	// Prepare request
+	signupReq := map[string]string{
+		"username": "testuser",
+		"password": "password123",
+	}
 
-	query := fmt.Sprintf(`{ "query": "mutation { signup(username: \"%s\", password: \"%s\") { token, tokenType, expiresIn } }" }`, username, password)
-	byteArray := []byte(query)
+	reqBody, err := json.Marshal(signupReq)
+	suite.NoError(err)
 
-	req, err := http.NewRequest("POST", "/test-graphql", bytes.NewBuffer(byteArray))
+	// Make request
+	req, err := http.NewRequest("POST", "/api/signup", bytes.NewBuffer(reqBody))
 	suite.NoError(err)
 	req.Header.Set("Content-Type", "application/json")
 
-	suite.handler.ServeHTTP(suite.rr, req)
+	rr := httptest.NewRecorder()
+	suite.router.ServeHTTP(rr, req)
 
-	var res SignUpResponse
-	err = json.Unmarshal(suite.rr.Body.Bytes(), &res)
+	// Assert response
+	assert.Equal(suite.T(), http.StatusCreated, rr.Code)
+
+	var authToken domain.AuthToken
+	err = json.Unmarshal(rr.Body.Bytes(), &authToken)
 	suite.NoError(err)
 
-	assert.Equal(suite.T(), http.StatusOK, suite.rr.Code)
-	assert.Equal(suite.T(), "Bearer", res.Data.Signup.TokenType)
-	assert.IsType(suite.T(), "", res.Data.Signup.Token)
-	assert.IsType(suite.T(), int64(0), res.Data.Signup.ExpiresIn)
+	assert.Equal(suite.T(), "Bearer", authToken.TokenType)
+	assert.NotEmpty(suite.T(), authToken.Token)
+	assert.Greater(suite.T(), authToken.ExpiresIn, int64(0))
+}
+
+func (suite *SignUpTestSuite) TestCreateUserWithInvalidUsername() {
+	// Test with short username (should fail validation)
+	signupReq := map[string]string{
+		"username": "short",
+		"password": "password123",
+	}
+
+	reqBody, err := json.Marshal(signupReq)
+	suite.NoError(err)
+
+	req, err := http.NewRequest("POST", "/api/signup", bytes.NewBuffer(reqBody))
+	suite.NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	suite.router.ServeHTTP(rr, req)
+
+	assert.Equal(suite.T(), http.StatusBadRequest, rr.Code)
 }
 
 func TestSignUpTestSuite(t *testing.T) {

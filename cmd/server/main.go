@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/dakaii/graphyy/internal/api"
 	"github.com/dakaii/graphyy/internal/controller"
 	"github.com/dakaii/graphyy/internal/database"
 	"github.com/dakaii/graphyy/internal/envvar"
 	"github.com/dakaii/graphyy/internal/repository"
-	"github.com/dakaii/graphyy/internal/view"
 )
 
 func main() {
@@ -16,12 +16,15 @@ func main() {
 	db := database.GetDatabase()
 	repos := repository.InitRepositories(db)
 	controllers := controller.InitControllers(repos)
-	schema := view.Schema(controllers)
 
-	http.Handle("/graphql", view.GraphqlHandlfunc(schema))
+	router := api.SetupRouter(controllers)
 
 	port := envvar.Port()
-	fmt.Println("server is started at: http://localhost:/" + port + "/")
-	fmt.Println("graphql api server is started at: http://localhost:" + port + "/graphql")
-	http.ListenAndServe(":"+port, nil)
+	fmt.Println("REST API server is started at: http://localhost:" + port + "/")
+	fmt.Println("Available endpoints:")
+	fmt.Println("  POST /api/signup")
+	fmt.Println("  POST /api/login")
+	fmt.Println("  GET  /api/me")
+
+	http.ListenAndServe(":"+port, router)
 }

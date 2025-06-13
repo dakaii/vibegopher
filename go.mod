@@ -6,8 +6,8 @@ require (
 	github.com/bluele/factory-go v0.0.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/google/uuid v1.6.0
-	github.com/graphql-go/graphql v0.7.9
-	github.com/graphql-go/handler v0.2.3
+	github.com/gorilla/mux v1.8.1
+	github.com/jaswdr/faker/v2 v2.3.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.22.0
 	gorm.io/driver/postgres v1.5.7

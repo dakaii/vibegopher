@@ -24,21 +24,8 @@ services:
     networks:
       - test-network
 
-  goose-test:
-    build:
-      context: .
-      dockerfile: Dockerfile.goose
-    volumes:
-      - ./migrations:/app/migrations
-    env_file:
-      - config/test.conf
-    networks:
-      - test-network
-    working_dir: /app
-
 volumes:
   postgres_test_data:
-
 
 networks:
   test-network:

@@ -3,17 +3,15 @@ package testing
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dakaii/graphyy/internal/auth"
+	"github.com/dakaii/graphyy/internal/api"
 	"github.com/dakaii/graphyy/internal/controller"
 	"github.com/dakaii/graphyy/internal/database"
 	"github.com/dakaii/graphyy/internal/domain"
 	"github.com/dakaii/graphyy/internal/repository"
-	"github.com/dakaii/graphyy/internal/view"
 	"github.com/dakaii/graphyy/testing/factory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -21,26 +19,14 @@ import (
 
 type LoginTestSuite struct {
 	suite.Suite
-	users   []domain.User
-	rr      *httptest.ResponseRecorder
-	handler http.Handler
-}
-
-type LogInResponse struct {
-	Data struct {
-		Login domain.AuthToken `json:"login"`
-	} `json:"data"`
+	router http.Handler
 }
 
 func (suite *LoginTestSuite) SetupTest() {
-	db := database.GetDatabase()
+	db := database.GetDatabase(true)
 	repos := repository.InitRepositories(db)
 	controllers := controller.InitControllers(repos)
-	schema := view.Schema(controllers)
-	suite.handler = view.GraphqlHandlfunc(schema)
-
-	suite.users = factory.CreateUsers(db, 5)
-	suite.rr = httptest.NewRecorder()
+	suite.router = api.SetupRouter(controllers)
 }
 
 func (suite *LoginTestSuite) TearDownTest() {
@@ -48,27 +34,79 @@ func (suite *LoginTestSuite) TearDownTest() {
 }
 
 func (suite *LoginTestSuite) TestLoginUser() {
-	loginUser := suite.users[0]
-	token := auth.GenerateJWT(loginUser)
+	// Create a user first
+	user := factory.CreateUser()
 
-	query := fmt.Sprintf(`{ "query": "mutation { login(username: \"%s\", password: \"%s\") { token, tokenType, expiresIn } }" }`, loginUser.Username, loginUser.Password)
-	byteArray := []byte(query)
+	// Prepare login request
+	loginReq := map[string]string{
+		"username": user.Username,
+		"password": "password123", // Default password from factory
+	}
 
-	req, err := http.NewRequest("POST", "/test-graphql", bytes.NewBuffer(byteArray))
+	reqBody, err := json.Marshal(loginReq)
+	suite.NoError(err)
+
+	// Make login request
+	req, err := http.NewRequest("POST", "/api/login", bytes.NewBuffer(reqBody))
 	suite.NoError(err)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.Token))
 
-	suite.handler.ServeHTTP(suite.rr, req)
+	rr := httptest.NewRecorder()
+	suite.router.ServeHTTP(rr, req)
 
-	var res LogInResponse
-	err = json.Unmarshal(suite.rr.Body.Bytes(), &res)
+	// Assert response
+	assert.Equal(suite.T(), http.StatusOK, rr.Code)
+
+	var authToken domain.AuthToken
+	err = json.Unmarshal(rr.Body.Bytes(), &authToken)
 	suite.NoError(err)
 
-	assert.Equal(suite.T(), http.StatusOK, suite.rr.Code)
-	assert.Equal(suite.T(), "Bearer", res.Data.Login.TokenType)
-	assert.IsType(suite.T(), "", res.Data.Login.Token)
-	assert.IsType(suite.T(), int64(0), res.Data.Login.ExpiresIn)
+	assert.Equal(suite.T(), "Bearer", authToken.TokenType)
+	assert.NotEmpty(suite.T(), authToken.Token)
+	assert.Greater(suite.T(), authToken.ExpiresIn, int64(0))
+}
+
+func (suite *LoginTestSuite) TestLoginWithInvalidCredentials() {
+	// Create a user first
+	user := factory.CreateUser()
+
+	// Prepare login request with wrong password
+	loginReq := map[string]string{
+		"username": user.Username,
+		"password": "wrongpassword",
+	}
+
+	reqBody, err := json.Marshal(loginReq)
+	suite.NoError(err)
+
+	req, err := http.NewRequest("POST", "/api/login", bytes.NewBuffer(reqBody))
+	suite.NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	suite.router.ServeHTTP(rr, req)
+
+	assert.Equal(suite.T(), http.StatusUnauthorized, rr.Code)
+}
+
+func (suite *LoginTestSuite) TestLoginWithNonExistentUser() {
+	// Prepare login request for non-existent user
+	loginReq := map[string]string{
+		"username": "nonexistent",
+		"password": "password123",
+	}
+
+	reqBody, err := json.Marshal(loginReq)
+	suite.NoError(err)
+
+	req, err := http.NewRequest("POST", "/api/login", bytes.NewBuffer(reqBody))
+	suite.NoError(err)
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	suite.router.ServeHTTP(rr, req)
+
+	assert.Equal(suite.T(), http.StatusUnauthorized, rr.Code)
 }
 
 func TestLoginTestSuite(t *testing.T) {

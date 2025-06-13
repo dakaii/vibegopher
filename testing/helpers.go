@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// TruncateAllTables cleans up all tables after tests
 func TruncateAllTables() {
 	password := envvar.DBPassword()
 	dbname := envvar.DBName()
@@ -17,7 +18,9 @@ func TruncateAllTables() {
 	user := envvar.DBUser()
 
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo", dbhost, user, password, dbname, dbport)
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo",
+		dbhost, user, password, dbname, dbport)
+
 	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
@@ -31,15 +34,15 @@ func TruncateAllTables() {
 
 	// Delete all rows from all tables
 	err = gormDB.Exec(`
-			DO $$
-			DECLARE
-				r RECORD;
-			BEGIN
-				FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
-					EXECUTE 'DELETE FROM ' || quote_ident(r.tablename) || ' CASCADE';
-				END LOOP;
-			END $$;
-		`).Error
+		DO $$
+		DECLARE
+			r RECORD;
+		BEGIN
+			FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
+				EXECUTE 'DELETE FROM ' || quote_ident(r.tablename) || ' CASCADE';
+			END LOOP;
+		END $$;
+	`).Error
 	if err != nil {
 		log.Println("Failed to delete all rows from all tables:", err)
 	}

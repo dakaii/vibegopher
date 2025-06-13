@@ -10,6 +10,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+var ErrUnauthorized = errors.New("unauthorized")
+
 func GenerateJWT(user domain.User) domain.AuthToken {
 	secret := envvar.AuthSecret()
 	expiresAt := time.Now().Add(time.Minute * 15).Unix()

@@ -1,67 +1,80 @@
 package factory
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/bluele/factory-go/factory"
 	"github.com/dakaii/graphyy/internal/domain"
 	"github.com/dakaii/graphyy/internal/repository/userrepo"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
+	"github.com/jaswdr/faker/v2"
 )
 
-type dbKey struct{}
-type passwordKey struct{}
-
-var UserFactory = factory.NewFactory(
-	&domain.User{},
-).Attr("ID", func(args factory.Args) (interface{}, error) {
-	return uuid.New(), nil
-}).Attr("Username", func(args factory.Args) (interface{}, error) {
-	user := args.Instance().(*domain.User)
-	return fmt.Sprintf("user-%s", user.ID.String()), nil
-}).Attr("Password", func(args factory.Args) (interface{}, error) {
-	password := args.Context().Value(passwordKey{}).(string)
-	hashedPassword, _ := userrepo.HashPassword(password)
-	return hashedPassword, nil
-}).Attr("CreatedAt", func(args factory.Args) (interface{}, error) {
-	return time.Now(), nil
-}).Attr("UpdatedAt", func(args factory.Args) (interface{}, error) {
-	return time.Now(), nil
-}).OnCreate(func(args factory.Args) error {
-	db := args.Context().Value(dbKey{}).(*gorm.DB)
-	return db.Create(args.Instance()).Error
-})
-
-func CreateUser(db *gorm.DB) domain.User {
-	tx := db.Begin()
-	ctx := context.WithValue(context.Background(), dbKey{}, tx)
-	v, err := UserFactory.CreateWithContext(ctx)
-	if err != nil {
-		panic(err)
+// BuildUser creates a user entity with faker data
+func BuildUser() domain.User {
+	fake := faker.New()
+	return domain.User{
+		ID:        uuid.New(),
+		Username:  fake.Internet().User(),
+		Password:  "password123",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
-	user := *v.(*domain.User)
-	tx.Commit()
+}
+
+// BuildUserWithPassword creates a user entity with a specific password
+func BuildUserWithPassword(password string) domain.User {
+	user := BuildUser()
+	user.Password = password
 	return user
 }
 
-func CreateUsers(db *gorm.DB, n int) []domain.User {
-	var users []domain.User
-	for i := 0; i < n; i++ {
-		tx := db.Begin()
-		ctx := context.WithValue(context.Background(), dbKey{}, tx)
-		password := fmt.Sprintf("user-%d", i)
-		ctx = context.WithValue(ctx, passwordKey{}, password)
-		v, err := UserFactory.CreateWithContext(ctx)
-		if err != nil {
-			panic(err)
-		}
-		user := *v.(*domain.User)
-		user.Password = password
-		tx.Commit()
-		users = append(users, user)
+// BuildUsers creates multiple user entities with faker data
+func BuildUsers(count int) []domain.User {
+	users := make([]domain.User, count)
+	for i := 0; i < count; i++ {
+		users[i] = BuildUserWithPassword(fmt.Sprintf("password%d", i+1))
 	}
 	return users
+}
+
+// CreateUser creates and saves a single user to the database
+func CreateUser() domain.User {
+	return createUserWithPassword("password123")
+}
+
+// CreateUserWithPassword creates and saves a user with a specific password
+func CreateUserWithPassword(password string) domain.User {
+	return createUserWithPassword(password)
+}
+
+// CreateUsers creates and saves multiple users to the database
+func CreateUsers(count int) []domain.User {
+	users := make([]domain.User, count)
+	for i := 0; i < count; i++ {
+		users[i] = createUserWithPassword(fmt.Sprintf("password%d", i+1))
+	}
+	return users
+}
+
+// Helper function to create and save a user with password handling
+func createUserWithPassword(plainPassword string) domain.User {
+	user := BuildUserWithPassword(plainPassword)
+
+	// Hash password for database
+	hashedPassword, err := userrepo.HashPassword(user.Password)
+	if err != nil {
+		panic(err)
+	}
+	user.Password = hashedPassword
+
+	// Save to database
+	savedUser, err := Save(user)
+	if err != nil {
+		panic(err)
+	}
+
+	// Return with plain password for tests
+	savedUser.Password = plainPassword
+	return savedUser
 }

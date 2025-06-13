@@ -1,75 +1,90 @@
 package testing
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/dakaii/graphyy/internal/api"
 	"github.com/dakaii/graphyy/internal/auth"
 	"github.com/dakaii/graphyy/internal/controller"
 	"github.com/dakaii/graphyy/internal/database"
-	"github.com/dakaii/graphyy/internal/domain"
 	"github.com/dakaii/graphyy/internal/repository"
-	"github.com/dakaii/graphyy/internal/view"
 	"github.com/dakaii/graphyy/testing/factory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-type MeUpTestSuite struct {
+type MeTestSuite struct {
 	suite.Suite
-	users   []domain.User
-	rr      *httptest.ResponseRecorder
-	handler http.Handler
+	router http.Handler
 }
 
 type MeResponse struct {
-	Data struct {
-		Me struct {
-			Username string `json:"username"`
-		} `json:"me"`
-	} `json:"data"`
+	Username string `json:"username"`
 }
 
-func (suite *MeUpTestSuite) SetupTest() {
-	db := database.GetDatabase()
+func (suite *MeTestSuite) SetupTest() {
+	db := database.GetDatabase(true)
 	repos := repository.InitRepositories(db)
 	controllers := controller.InitControllers(repos)
-	schema := view.Schema(controllers)
-	suite.handler = view.GraphqlHandlfunc(schema)
-
-	suite.users = factory.CreateUsers(db, 5)
-	suite.rr = httptest.NewRecorder()
+	suite.router = api.SetupRouter(controllers)
 }
 
-func (suite *MeUpTestSuite) TearDownTest() {
+func (suite *MeTestSuite) TearDownTest() {
 	TruncateAllTables()
 }
-func (suite *MeUpTestSuite) TestMeEndpoint() {
-	loginUser := suite.users[0]
-	token := auth.GenerateJWT(loginUser)
 
-	meQuery := `{ "query": "{ me { username } }" }`
-	byteArray := []byte(meQuery)
+func (suite *MeTestSuite) TestGetMe() {
+	// Create a user and get auth token
+	user := factory.CreateUser()
+	token := auth.GenerateJWT(user)
 
-	req, err := http.NewRequest("POST", "/test-graphql", bytes.NewBuffer(byteArray))
+	// Make authenticated request to /me endpoint
+	req, err := http.NewRequest("GET", "/api/me", nil)
 	suite.NoError(err)
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.Token))
-	suite.rr = httptest.NewRecorder()
-	suite.handler.ServeHTTP(suite.rr, req)
 
-	var res MeResponse
-	err = json.Unmarshal(suite.rr.Body.Bytes(), &res)
+	rr := httptest.NewRecorder()
+	suite.router.ServeHTTP(rr, req)
+
+	// Assert response
+	assert.Equal(suite.T(), http.StatusOK, rr.Code)
+
+	var meResponse MeResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &meResponse)
 	suite.NoError(err)
 
-	assert.Equal(suite.T(), http.StatusOK, suite.rr.Code)
-	assert.Equal(suite.T(), loginUser.Username, res.Data.Me.Username)
+	assert.Equal(suite.T(), user.Username, meResponse.Username)
+}
+
+func (suite *MeTestSuite) TestGetMeWithoutAuth() {
+	// Make request without authorization header
+	req, err := http.NewRequest("GET", "/api/me", nil)
+	suite.NoError(err)
+
+	rr := httptest.NewRecorder()
+	suite.router.ServeHTTP(rr, req)
+
+	// Should return unauthorized
+	assert.Equal(suite.T(), http.StatusUnauthorized, rr.Code)
+}
+
+func (suite *MeTestSuite) TestGetMeWithInvalidToken() {
+	// Make request with invalid token
+	req, err := http.NewRequest("GET", "/api/me", nil)
+	suite.NoError(err)
+	req.Header.Set("Authorization", "Bearer invalid-token")
+
+	rr := httptest.NewRecorder()
+	suite.router.ServeHTTP(rr, req)
+
+	// Should return unauthorized
+	assert.Equal(suite.T(), http.StatusUnauthorized, rr.Code)
 }
 
 func TestMeTestSuite(t *testing.T) {
-	suite.Run(t, new(MeUpTestSuite))
+	suite.Run(t, new(MeTestSuite))
 }
