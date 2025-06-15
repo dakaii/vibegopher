@@ -21,10 +21,6 @@ func main() {
 
 	port := envvar.Port()
 	fmt.Println("REST API server is started at: http://localhost:" + port + "/")
-	fmt.Println("Available endpoints:")
-	fmt.Println("  POST /api/signup")
-	fmt.Println("  POST /api/login")
-	fmt.Println("  GET  /api/me")
 
 	http.ListenAndServe(":"+port, router)
 }

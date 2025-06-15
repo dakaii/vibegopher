@@ -8,6 +8,7 @@ import (
 	"github.com/dakaii/vibegopher/internal/domain"
 	"github.com/dakaii/vibegopher/internal/envvar"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 )
 
 var ErrUnauthorized = errors.New("unauthorized")
@@ -57,21 +58,27 @@ func VerifyJWT(tknStr string) (domain.User, error) {
 	for key, val := range claims {
 		decoded[key] = val
 	}
+
 	var username string
 	if keyExists(decoded, "username") {
 		username = decoded["username"].(string)
 	}
 
-	// TODO parse the other fields
+	var userID string
+	if keyExists(decoded, "id") {
+		userID = decoded["id"].(string)
+	}
 
-	// var createdAt time.Time
-	// if keyExists(decoded, "createdAt") {
-	// 	createdAt, err = parseTimeString(decoded["createdAt"])
-	// 	if err != nil {
-	// 		return entity.User{}, fmt.Errorf("could not parse createdAt time: %w", err)
-	// 	}
-	// }
-	return domain.User{Username: username}, nil
+	// Parse UUID from string
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return domain.User{}, errors.New("invalid user ID in token")
+	}
+
+	return domain.User{
+		ID:       id,
+		Username: username,
+	}, nil
 }
 
 func keyExists(decoded map[string]interface{}, key string) bool {

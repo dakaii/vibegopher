@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"github.com/dakaii/vibegopher/internal/envvar"
+	"github.com/dakaii/vibegopher/internal/repository/commentrepo"
+	"github.com/dakaii/vibegopher/internal/repository/postrepo"
 	"github.com/dakaii/vibegopher/internal/repository/userrepo"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
@@ -33,7 +35,8 @@ func GetDatabase(isTest ...bool) *gorm.DB {
 	if len(isTest) > 0 && isTest[0] {
 		err = db.AutoMigrate(
 			&userrepo.UserEntity{},
-			// Add other entities here as you create them
+			&postrepo.PostEntity{},
+			&commentrepo.CommentEntity{},
 		)
 		if err != nil {
 			log.Fatal("Failed to auto-migrate database schema:", err)

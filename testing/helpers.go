@@ -32,6 +32,13 @@ func TruncateAllTables() {
 		}
 	}()
 
+	// Disable foreign key constraints temporarily
+	err = gormDB.Exec("SET session_replication_role = replica;").Error
+	if err != nil {
+		log.Println("Failed to disable foreign key constraints:", err)
+		return
+	}
+
 	// Delete all rows from all tables
 	err = gormDB.Exec(`
 		DO $$
@@ -39,11 +46,17 @@ func TruncateAllTables() {
 			r RECORD;
 		BEGIN
 			FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
-				EXECUTE 'DELETE FROM ' || quote_ident(r.tablename) || ' CASCADE';
+				EXECUTE 'DELETE FROM ' || quote_ident(r.tablename);
 			END LOOP;
 		END $$;
 	`).Error
 	if err != nil {
 		log.Println("Failed to delete all rows from all tables:", err)
+	}
+
+	// Re-enable foreign key constraints
+	err = gormDB.Exec("SET session_replication_role = DEFAULT;").Error
+	if err != nil {
+		log.Println("Failed to re-enable foreign key constraints:", err)
 	}
 }

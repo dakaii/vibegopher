@@ -19,23 +19,23 @@ func SetupRouter(controllers *controller.Controllers) *mux.Router {
 	// Auth routes
 	api.HandleFunc("/signup", handlers.Signup).Methods("POST")
 	api.HandleFunc("/login", handlers.Login).Methods("POST")
-	api.HandleFunc("/me", handlers.Me).Methods("GET")
+	api.HandleFunc("/me", handlers.withAuth(handlers.Me)).Methods("GET")
 
 	// Post routes
-	api.HandleFunc("/posts", handlers.CreatePost).Methods("POST")
+	api.HandleFunc("/posts", handlers.withAuth(handlers.CreatePost)).Methods("POST")
 	api.HandleFunc("/posts", handlers.GetAllPosts).Methods("GET")
 	api.HandleFunc("/posts/{id}", handlers.GetPostByID).Methods("GET")
 	api.HandleFunc("/posts/user/{userId}", handlers.GetPostsByUserID).Methods("GET")
-	api.HandleFunc("/posts/{id}", handlers.UpdatePost).Methods("PATCH")
-	api.HandleFunc("/posts/{id}", handlers.DeletePost).Methods("DELETE")
+	api.HandleFunc("/posts/{id}", handlers.withAuth(handlers.UpdatePost)).Methods("PATCH")
+	api.HandleFunc("/posts/{id}", handlers.withAuth(handlers.DeletePost)).Methods("DELETE")
 
 	// Comment routes
-	api.HandleFunc("/comments", handlers.CreateComment).Methods("POST")
+	api.HandleFunc("/comments", handlers.withAuth(handlers.CreateComment)).Methods("POST")
 	api.HandleFunc("/comments/post/{postId}", handlers.GetCommentsByPostID).Methods("GET")
 	api.HandleFunc("/comments/user/{userId}", handlers.GetCommentsByUserID).Methods("GET")
 	api.HandleFunc("/comments/{id}", handlers.GetCommentByID).Methods("GET")
-	api.HandleFunc("/comments/{id}", handlers.UpdateComment).Methods("PATCH")
-	api.HandleFunc("/comments/{id}", handlers.DeleteComment).Methods("DELETE")
+	api.HandleFunc("/comments/{id}", handlers.withAuth(handlers.UpdateComment)).Methods("PATCH")
+	api.HandleFunc("/comments/{id}", handlers.withAuth(handlers.DeleteComment)).Methods("DELETE")
 
 	// Add CORS middleware
 	r.Use(corsMiddleware)

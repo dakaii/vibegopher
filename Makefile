@@ -4,10 +4,10 @@ create_migration:
 	goose -dir ./migrations create $(NAME)
 
 migrate:
-	docker-compose -f docker-compose.yml run --rm goose-dev bash -c "goose -dir ./migrations up"
+	docker compose -f docker-compose.yml run --rm goose-dev bash -c "goose -dir ./migrations up"
 
 migrate-test-db:
-	docker-compose -f docker-compose.test.yml run --rm goose-test bash -c "goose -dir ./migrations up"
+	docker compose -f docker-compose.test.yml run --rm goose-test bash -c "goose -dir ./migrations up"
 
 create-dev-db:
 	docker exec -it vibegopher-postgresql-dev1 psql -U postgres -c "CREATE DATABASE vibegopher_development;"
@@ -17,17 +17,17 @@ drop-dev-db:
 
 build:
 	env GOOS=linux GOARCH=386 go build -o build ./cmd/server/main.go
-	docker-compose build
+	docker compose build
 run-db:
-	docker-compose up -d postgresql-dev
+	docker compose up -d postgresql-dev
 up:
 	env GOOS=linux GOARCH=386 go build -o build ./cmd/server/main.go
-	docker-compose up backend && docker-compose rm -fsv
+	docker compose up backend && docker compose rm -fsv
 down:
-	docker-compose down --volumes
+	docker compose down --volumes
 test:
-	docker-compose -f docker-compose.test.yml run --rm test
-	docker-compose -f docker-compose.test.yml rm -fsv
+	docker compose -f docker-compose.test.yml run --rm test
+	docker compose -f docker-compose.test.yml rm -fsv
 
 clear-test:
 	docker volume remove vibegopher_postgres_test_data

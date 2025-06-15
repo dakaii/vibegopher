@@ -118,9 +118,8 @@ func (suite *CommentTestSuite) TestCreateCommentInvalidContent() {
 }
 
 func (suite *CommentTestSuite) TestGetCommentsByPostID() {
-	// Create users and post
 	user1 := factory.CreateUser()
-	user2 := factory.CreateUserWithPassword("password456")
+	user2 := factory.CreateUser() // Use default password instead of custom one
 	post := factory.CreatePostWithContent(user1.ID, "Test post content")
 
 	// Create comments
@@ -148,7 +147,7 @@ func (suite *CommentTestSuite) TestGetCommentsByPostID() {
 
 func (suite *CommentTestSuite) TestGetCommentsByUserID() {
 	user1 := factory.CreateUser()
-	user2 := factory.CreateUserWithPassword("password456")
+	user2 := factory.CreateUser() // Use default password instead of custom one
 	post1 := factory.CreatePostWithContent(user1.ID, "Post 1")
 	post2 := factory.CreatePostWithContent(user2.ID, "Post 2")
 
@@ -229,7 +228,7 @@ func (suite *CommentTestSuite) TestUpdateComment() {
 
 func (suite *CommentTestSuite) TestUpdateCommentUnauthorized() {
 	user1 := factory.CreateUser()
-	user2 := factory.CreateUserWithPassword("password456")
+	user2 := factory.CreateUser() // Use default password instead of custom one
 	post := factory.CreatePostWithContent(user1.ID, "Test post content")
 	comment := factory.CreateCommentWithContent(user1.ID, post.ID, "Original comment")
 
@@ -277,7 +276,7 @@ func (suite *CommentTestSuite) TestDeleteComment() {
 
 func (suite *CommentTestSuite) TestDeleteCommentUnauthorized() {
 	user1 := factory.CreateUser()
-	user2 := factory.CreateUserWithPassword("password456")
+	user2 := factory.CreateUser() // Use default password instead of custom one
 	post := factory.CreatePostWithContent(user1.ID, "Test post content")
 	comment := factory.CreateCommentWithContent(user1.ID, post.ID, "Comment to delete")
 
@@ -295,7 +294,7 @@ func (suite *CommentTestSuite) TestDeleteCommentUnauthorized() {
 func (suite *CommentTestSuite) getBearerToken(user domain.User) string {
 	signupReq := map[string]string{
 		"username": user.Username,
-		"password": "password123",
+		"password": user.Password, // Use the user's actual password
 	}
 
 	reqBody, _ := json.Marshal(signupReq)

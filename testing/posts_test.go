@@ -111,7 +111,7 @@ func (suite *PostTestSuite) TestCreatePostInvalidContent() {
 func (suite *PostTestSuite) TestGetAllPosts() {
 	// Create users and posts
 	user1 := factory.CreateUser()
-	user2 := factory.CreateUserWithPassword("password456")
+	user2 := factory.CreateUser()
 	factory.CreatePostWithContent(user1.ID, "Post by user 1")
 	factory.CreatePostWithContent(user2.ID, "Post by user 2")
 
@@ -152,7 +152,7 @@ func (suite *PostTestSuite) TestGetPostByID() {
 
 func (suite *PostTestSuite) TestGetPostsByUserID() {
 	user1 := factory.CreateUser()
-	user2 := factory.CreateUserWithPassword("password456")
+	user2 := factory.CreateUser()
 	factory.CreatePostWithContent(user1.ID, "Post 1 by user 1")
 	factory.CreatePostWithContent(user1.ID, "Post 2 by user 1")
 	factory.CreatePostWithContent(user2.ID, "Post by user 2")
@@ -206,7 +206,7 @@ func (suite *PostTestSuite) TestUpdatePost() {
 
 func (suite *PostTestSuite) TestUpdatePostUnauthorized() {
 	user1 := factory.CreateUser()
-	user2 := factory.CreateUserWithPassword("password456")
+	user2 := factory.CreateUser()
 	post := factory.CreatePostWithContent(user1.ID, "Original content")
 
 	updateReq := map[string]string{
@@ -252,7 +252,7 @@ func (suite *PostTestSuite) TestDeletePost() {
 
 func (suite *PostTestSuite) TestDeletePostUnauthorized() {
 	user1 := factory.CreateUser()
-	user2 := factory.CreateUserWithPassword("password456")
+	user2 := factory.CreateUser()
 	post := factory.CreatePostWithContent(user1.ID, "Content to delete")
 
 	req, err := http.NewRequest("DELETE", fmt.Sprintf("/api/posts/%s", post.ID), nil)
@@ -269,7 +269,7 @@ func (suite *PostTestSuite) TestDeletePostUnauthorized() {
 func (suite *PostTestSuite) getBearerToken(user domain.User) string {
 	signupReq := map[string]string{
 		"username": user.Username,
-		"password": "password123",
+		"password": user.Password,
 	}
 
 	reqBody, _ := json.Marshal(signupReq)

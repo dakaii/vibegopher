@@ -19,7 +19,7 @@ func (c *Controller) Login(user domain.User) (domain.AuthToken, error) {
 		return domain.AuthToken{}, errors.New("invalid credentials")
 	}
 
-	token := auth.GenerateJWT(user)
+	token := auth.GenerateJWT(*existingUser)
 	return token, nil
 }
 
