@@ -1,10 +1,17 @@
 .PHONY: build up down
 
 create_migration:
-	docker compose run --rm atlas-dev atlas migrate diff $(NAME) --env dev
+	@echo "Creating migration: $(NAME)"
+	@echo "Make sure database is running: make run-db"
+	@echo "Creating temporary dev database if needed..."
+	@docker exec vibegopher-postgresql-dev1 psql -U postgres -c "CREATE DATABASE IF NOT EXISTS atlas_dev;" 2>/dev/null || true
+	docker compose run --rm atlas-dev atlas migrate diff $(NAME) --env dev --dev-url "postgres://postgres:postgres@vibegopher-postgresql-dev1:5432/atlas_dev?sslmode=disable"
 
 migrate:
 	docker compose run --rm atlas-dev atlas migrate apply --env dev
+
+migrate-status:
+	docker compose run --rm atlas-dev atlas migrate status --env dev
 
 migrate-test-db:
 	echo "Database setup is now handled automatically by the test container"
@@ -14,6 +21,16 @@ schema-inspect:
 
 schema-apply:
 	docker compose run --rm atlas-dev atlas schema apply --env dev
+
+schema-apply-dev:
+	@echo "⚠️  WARNING: This applies schema changes directly without migration files"
+	@echo "⚠️  Only use this for local development!"
+	@read -p "Continue? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
+	docker compose run --rm atlas-dev atlas schema apply --env dev
+
+schema-diff-preview:
+	@echo "Previewing schema differences..."
+	docker compose run --rm atlas-dev atlas schema diff --env dev
 
 create-dev-db:
 	docker exec -it vibegopher-postgresql-dev1 psql -U postgres -c "CREATE DATABASE vibegopher_development;"

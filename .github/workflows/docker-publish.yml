@@ -11,15 +11,6 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v2
 
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.24
-
-      - name: Build Go app
-        run: |
-          env GOOS=linux GOARCH=386 go build -o build ./cmd/server/main.go
-
       - name: Log in to GitHub Docker Registry
         uses: docker/login-action@v1
         with:
@@ -27,17 +18,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image (backend)
         uses: docker/build-push-action@v2
         with:
           context: .
+          file: ./Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
 
-      - name: Build and push Docker image (goose)
+      - name: Build and push Docker image (atlas)
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./Dockerfile.goose
+          file: ./Dockerfile.atlas
           push: true
-          tags: ghcr.io/${{ github.repository }}:goose-latest
+          tags: ghcr.io/${{ github.repository }}:atlas-latest
