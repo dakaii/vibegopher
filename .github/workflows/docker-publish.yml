@@ -25,11 +25,3 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
-
-      - name: Build and push Docker image (atlas)
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./Dockerfile.atlas
-          push: true
-          tags: ghcr.io/${{ github.repository }}:atlas-latest
