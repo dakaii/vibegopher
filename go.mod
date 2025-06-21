@@ -3,6 +3,7 @@ module github.com/dakaii/vibegopher
 go 1.24
 
 require (
+	ariga.io/atlas v0.19.1
 	github.com/bluele/factory-go v0.0.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/google/uuid v1.6.0

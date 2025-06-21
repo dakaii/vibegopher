@@ -7,11 +7,11 @@ WORKDIR /app
 # Copy go mod and sum files
 COPY go.mod go.sum ./
 
-# Copy the source from the current directory to the Working Directory inside the container
+# Download dependencies
+RUN go mod download
+
+# Copy the source code
 COPY . .
 
-# Tidy up dependencies and download them
-RUN go mod tidy && go mod download
-
 # Run the tests
-CMD ["go", "test" , "./...", "-v", "-cover"]
+CMD ["go", "test", "./...", "-v", "-cover"]
