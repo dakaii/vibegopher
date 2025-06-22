@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // AuthToken struct
@@ -13,6 +13,6 @@ type AuthToken struct {
 
 // AuthTokenClaim struct
 type AuthTokenClaim struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	User
 }

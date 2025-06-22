@@ -7,7 +7,7 @@ import (
 
 	"github.com/dakaii/vibegopher/internal/domain"
 	"github.com/dakaii/vibegopher/internal/envvar"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -20,8 +20,8 @@ func GenerateJWT(user domain.User) domain.AuthToken {
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	token.Claims = &domain.AuthTokenClaim{
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expiresAt,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Unix(expiresAt, 0)),
 		},
 		User: user,
 	}
@@ -38,14 +38,17 @@ func GenerateJWT(user domain.User) domain.AuthToken {
 }
 
 func VerifyJWT(tknStr string) (domain.User, error) {
-
 	claims := jwt.MapClaims{}
 	token, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
+		// Validate the signing method to prevent "none algorithm" attack
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return []byte(envvar.AuthSecret()), nil
 	})
 
 	if err != nil {
-		if err == jwt.ErrSignatureInvalid {
+		if errors.Is(err, jwt.ErrSignatureInvalid) {
 			return domain.User{}, errors.New("signature invalid")
 		}
 		return domain.User{}, errors.New("could not parse the auth token")
