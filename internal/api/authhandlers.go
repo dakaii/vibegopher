@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/dakaii/vibegopher/internal/domain"
 )
@@ -32,6 +33,13 @@ func (h *Handlers) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sanitize input
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Password == "" {
+		h.writeError(w, "Password is required", http.StatusBadRequest)
+		return
+	}
+
 	user := domain.User{
 		Username: req.Username,
 		Password: req.Password,
@@ -51,6 +59,13 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Sanitize input
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Username == "" || req.Password == "" {
+		h.writeError(w, "Username and password are required", http.StatusBadRequest)
 		return
 	}
 
