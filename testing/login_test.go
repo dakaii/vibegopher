@@ -40,7 +40,7 @@ func (suite *LoginTestSuite) TestLoginUser() {
 	// Prepare login request
 	loginReq := map[string]string{
 		"username": user.Username,
-		"password": "password123", // Default password from factory
+		"password": "Password123", // Updated to match new factory password
 	}
 
 	reqBody, err := json.Marshal(loginReq)

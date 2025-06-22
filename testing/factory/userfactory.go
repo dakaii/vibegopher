@@ -16,7 +16,7 @@ func BuildUser() domain.User {
 	return domain.User{
 		ID:        uuid.New(),
 		Username:  fake.Internet().User(),
-		Password:  "password123",
+		Password:  "Password123",  // Updated to meet new password requirements
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -33,14 +33,14 @@ func BuildUserWithPassword(password string) domain.User {
 func BuildUsers(count int) []domain.User {
 	users := make([]domain.User, count)
 	for i := 0; i < count; i++ {
-		users[i] = BuildUserWithPassword(fmt.Sprintf("password%d", i+1))
+		users[i] = BuildUserWithPassword(fmt.Sprintf("Password%d", i+1))  // Updated to meet requirements
 	}
 	return users
 }
 
 // CreateUser creates and saves a single user to the database
 func CreateUser() domain.User {
-	return createUserWithPassword("password123")
+	return createUserWithPassword("Password123")  // Updated to meet new password requirements
 }
 
 // CreateUserWithPassword creates and saves a user with a specific password

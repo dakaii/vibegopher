@@ -36,7 +36,7 @@ func (suite *SignUpTestSuite) TestCreateUser() {
 	// Prepare request
 	signupReq := map[string]string{
 		"username": "testuser",
-		"password": "password123",
+		"password": "Password123",  // Updated to meet new password requirements
 	}
 
 	reqBody, err := json.Marshal(signupReq)
@@ -65,8 +65,8 @@ func (suite *SignUpTestSuite) TestCreateUser() {
 func (suite *SignUpTestSuite) TestCreateUserWithInvalidUsername() {
 	// Test with short username (should fail validation)
 	signupReq := map[string]string{
-		"username": "short",
-		"password": "password123",
+		"username": "sh",  // Too short (less than 3 characters)
+		"password": "Password123",
 	}
 
 	reqBody, err := json.Marshal(signupReq)
