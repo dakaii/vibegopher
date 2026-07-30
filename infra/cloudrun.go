@@ -32,6 +32,11 @@ func deployCloudRun(ctx *pulumi.Context, cfg stackConfig, apis *enabledAPIs, sas
 			Name:  pulumi.String("HASH_COST"),
 			Value: pulumi.String("14"),
 		},
+		// Poll bot_jobs in-process (use min instances >= 1 in prod for reliable workers).
+		&cloudrunv2.ServiceTemplateContainerEnvArgs{
+			Name:  pulumi.String("BOT_WORKER_ENABLED"),
+			Value: pulumi.String("true"),
+		},
 	}
 
 	service, err := cloudrunv2.NewService(ctx, "api-service", &cloudrunv2.ServiceArgs{
@@ -57,7 +62,8 @@ func deployCloudRun(ctx *pulumi.Context, cfg stackConfig, apis *enabledAPIs, sas
 				},
 			},
 			Scaling: &cloudrunv2.ServiceTemplateScalingArgs{
-				MinInstanceCount: pulumi.Int(0),
+				// Keep one instance warm so the in-process bot worker keeps polling.
+				MinInstanceCount: pulumi.Int(1),
 				MaxInstanceCount: pulumi.Int(5),
 			},
 		},

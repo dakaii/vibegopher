@@ -3,13 +3,14 @@ package testing
 import (
 	"log"
 
+	"github.com/dakaii/vibegopher/internal/domain"
 	"github.com/dakaii/vibegopher/internal/envvar"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 // TruncateAllTables cleans up application tables after tests.
-// The goose version table is left intact so migrations are not re-applied from scratch every test.
+// The goose version table is left intact; the AI bot user is re-seeded.
 func TruncateAllTables() {
 	gormDB, err := gorm.Open(postgres.Open(envvar.PostgresDSN()), &gorm.Config{})
 	if err != nil {
@@ -22,7 +23,6 @@ func TruncateAllTables() {
 		}
 	}()
 
-	// Disable foreign key constraints temporarily
 	err = gormDB.Exec("SET session_replication_role = replica;").Error
 	if err != nil {
 		log.Println("Failed to disable foreign key constraints:", err)
@@ -51,5 +51,15 @@ func TruncateAllTables() {
 	err = gormDB.Exec("SET session_replication_role = DEFAULT;").Error
 	if err != nil {
 		log.Println("Failed to re-enable foreign key constraints:", err)
+	}
+
+	// Re-seed bot account required for FK when the worker posts replies.
+	err = gormDB.Exec(`
+		INSERT INTO users (id, created_at, updated_at, username, password, google_sub, email, is_bot)
+		VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, NULL, NULL, NULL, TRUE)
+		ON CONFLICT (id) DO NOTHING
+	`, domain.BotUserID, domain.BotUsername).Error
+	if err != nil {
+		log.Println("Failed to re-seed bot user:", err)
 	}
 }

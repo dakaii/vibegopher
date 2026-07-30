@@ -28,6 +28,7 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request, user domai
 		return
 	}
 
+	h.controllers.EnqueueBotJob(domain.BotJobKindPostCreated, createdPost.ID, user.ID)
 	h.writeJSON(w, createdPost, http.StatusCreated)
 }
 

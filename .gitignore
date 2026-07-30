@@ -1,6 +1,10 @@
 .vscode
 build
 testing.test
+frontend/node_modules
+frontend/dist
+frontend/.env
+.env
 
 # Pulumi
 infra/Pulumi.*.yaml
