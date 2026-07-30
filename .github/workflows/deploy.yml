@@ -24,10 +24,11 @@ env:
   GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
   AR_REPO: vibegopher
   IMAGE_NAME: api
+  CLOUD_RUN_SERVICE: vibegopher-api
 
 jobs:
   deploy:
-    name: Build, sync secrets, pulumi up
+    name: Build, pulumi up, sync secrets, migrate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,9 +43,14 @@ jobs:
               missing=1
             fi
           done
-          if [ -z "${PULUMI_ACCESS_TOKEN}" ]; then
-            echo "Missing repository secret: PULUMI_ACCESS_TOKEN"
-            missing=1
+          for s in PULUMI_ACCESS_TOKEN DATABASE_URL AUTH_SECRET; do
+            if [ -z "${!s}" ]; then
+              echo "Missing repository secret: $s"
+              missing=1
+            fi
+          done
+          if [ -z "${DATABASE_URL_MIGRATE}" ]; then
+            echo "Warning: DATABASE_URL_MIGRATE unset; migrations will use DATABASE_URL (prefer Neon direct host, not -pooler)"
           fi
           exit "$missing"
         env:
@@ -52,6 +58,9 @@ jobs:
           GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_MIGRATE: ${{ secrets.DATABASE_URL_MIGRATE }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -64,6 +73,14 @@ jobs:
 
       - name: Configure Artifact Registry Docker auth
         run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: |
+            go.sum
+            infra/go.sum
 
       - name: Resolve image tag
         id: meta
@@ -87,6 +104,23 @@ jobs:
             ${{ steps.meta.outputs.image_url }}
             ${{ steps.meta.outputs.image }}:latest
 
+      - name: Set up Pulumi
+        uses: pulumi/actions@v6
+
+      # Create/update Secret Manager containers + IAM before syncing payloads.
+      - name: Pulumi up
+        working-directory: infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          pulumi stack select "${PULUMI_STACK}"
+          pulumi config set gcp:project "${GCP_PROJECT_ID}"
+          pulumi config set vibegopher:region "${GCP_REGION}"
+          pulumi config set vibegopher:imageTag "${{ steps.meta.outputs.tag }}"
+          pulumi config set vibegopher:protectSecrets true
+          pulumi config set vibegopher:enableCloudRun true
+          pulumi up --yes
+
       - name: Sync runtime secrets into Secret Manager
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -98,41 +132,37 @@ jobs:
           chmod +x infra/scripts/sync-secrets.sh
           ./infra/scripts/sync-secrets.sh
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-          cache-dependency-path: |
-            go.sum
-            infra/go.sum
-
-      - name: Run database migrations (Neon)
+      - name: Run database migrations (Neon direct URL)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_MIGRATE: ${{ secrets.DATABASE_URL_MIGRATE }}
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "DATABASE_URL secret is required to migrate before deploy"
+          MIGRATE_URL="${DATABASE_URL_MIGRATE:-$DATABASE_URL}"
+          if [ -z "$MIGRATE_URL" ]; then
+            echo "DATABASE_URL_MIGRATE or DATABASE_URL is required"
             exit 1
           fi
-          go run ./cmd/migrate up
+          case "$MIGRATE_URL" in
+            *-pooler*)
+              echo "error: migrate URL looks like a Neon pooler endpoint; set DATABASE_URL_MIGRATE to the direct host (session/advisory locks)" >&2
+              exit 1
+              ;;
+          esac
+          DATABASE_URL="$MIGRATE_URL" go run ./cmd/migrate up
 
-      - name: Set up Pulumi
-        uses: pulumi/actions@v6
-
-      - name: Pulumi up
-        working-directory: infra
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+      - name: Force Cloud Run revision to pick up synced secrets
         run: |
-          pulumi stack select "${PULUMI_STACK}"
-          pulumi config set gcp:project "${GCP_PROJECT_ID}"
-          pulumi config set vibegopher:region "${GCP_REGION}"
-          pulumi config set vibegopher:imageTag "${{ steps.meta.outputs.tag }}"
-          # Keep Secret Manager protected unless an operator changed stack config.
-          pulumi config set vibegopher:protectSecrets true
-          # Image was just pushed, so Cloud Run can be enabled even after a secrets-only bootstrap.
-          pulumi config set vibegopher:enableCloudRun true
-          pulumi up --yes
+          if gcloud run services describe "${CLOUD_RUN_SERVICE}" \
+              --project="${GCP_PROJECT_ID}" \
+              --region="${GCP_REGION}" >/dev/null 2>&1; then
+            gcloud run services update "${CLOUD_RUN_SERVICE}" \
+              --project="${GCP_PROJECT_ID}" \
+              --region="${GCP_REGION}" \
+              --update-env-vars="DEPLOYED_SHA=${GITHUB_SHA}" \
+              --quiet
+          else
+            echo "Cloud Run service not found yet; skipping revision bump"
+          fi
 
       - name: Write deployment summary
         working-directory: infra
@@ -144,7 +174,7 @@ jobs:
             echo ""
             echo "- Image: \`${{ steps.meta.outputs.image_url }}\`"
             echo "- Stack: \`${PULUMI_STACK}\`"
-            echo "- Migrations: goose \`up\` against Neon (\`DATABASE_URL\`)"
+            echo "- Migrations: goose \`up\` via \`DATABASE_URL_MIGRATE\` (direct Neon host)"
             echo "- Cloud Run URI: $(pulumi stack output cloudRunUri)"
             echo "- Secret Manager protected: $(pulumi stack output protectSecrets)"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -209,7 +209,7 @@ Infrastructure lives in [`infra/`](./infra/). Secret placement (GCP Secret Manag
 
 | Workflow | Trigger | Behavior |
 |----------|---------|----------|
-| [deploy.yml](./.github/workflows/deploy.yml) | Push to `main` / manual | Build image → sync secrets → **goose migrate** → `pulumi up` |
+| [deploy.yml](./.github/workflows/deploy.yml) | Push to `main` / manual | Build/push → `pulumi up` → sync secrets → **goose migrate** (direct Neon URL) → Cloud Run bump |
 | [destroy.yml](./.github/workflows/destroy.yml) | Manual (`confirm=destroy`) | `pulumi destroy --exclude-protected` — **keeps Secret Manager by default** |
 
 Set `destroy_secrets=true` on the destroy workflow only when you intentionally want Secret Manager secrets removed.

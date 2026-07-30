@@ -50,7 +50,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.24"
           cache-dependency-path: infra/go.sum
 
       - name: Set up Pulumi
@@ -90,6 +90,16 @@ jobs:
               echo "Secret Manager resources in this stack were destroyed."
             else
               echo "Secret Manager API + secrets were **kept** (\`--exclude-protected\`)."
-              echo "Re-deploy with the Deploy workflow when ready; re-sync secret values if placeholders were never replaced."
             fi
+            echo ""
+            echo "### Re-deploy is not automatic"
+            echo "This destroy also removes Workload Identity Federation and the deploy service account."
+            echo "GitHub Actions **cannot** authenticate until you bootstrap again locally:"
+            echo ""
+            echo '```bash'
+            echo 'cd infra && pulumi config set vibegopher:enableCloudRun false && pulumi up'
+            echo '# copy workloadIdentityProvider + deployServiceAccount back into GitHub variables'
+            echo '```'
+            echo ""
+            echo "Then run the Deploy workflow (or push to \`main\`)."
           } >> "$GITHUB_STEP_SUMMARY"

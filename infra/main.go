@@ -36,6 +36,9 @@ func main() {
 		if err := grantRuntimeSecretAccess(ctx, cfg, sas, secrets); err != nil {
 			return err
 		}
+		if err := grantArtifactRegistryReaders(ctx, cfg, sas, repo); err != nil {
+			return err
+		}
 		if err := grantDeployPermissions(ctx, cfg, sas, repo, secrets); err != nil {
 			return err
 		}

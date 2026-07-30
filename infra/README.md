@@ -53,8 +53,8 @@ Then run the **Deploy** GitHub Action (or push to `main`). It pushes the image, 
 
 ## Deploy / destroy via GitHub Actions
 
-- **Deploy** — `.github/workflows/deploy.yml` on push to `main` (build → Artifact Registry → sync secrets → `pulumi up`)
-- **Destroy** — `.github/workflows/destroy.yml` (`workflow_dispatch`); by default keeps Secret Manager
+- **Deploy** — `.github/workflows/deploy.yml` on push to `main` (build/push → `pulumi up` → sync secrets → goose migrate → Cloud Run revision bump)
+- **Destroy** — `.github/workflows/destroy.yml` (`workflow_dispatch`); by default keeps Secret Manager but **removes WIF/deploy SA** — bootstrap locally again before the next CI deploy
 
 ## Protect Secret Manager (default)
 
