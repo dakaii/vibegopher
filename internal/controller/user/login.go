@@ -14,6 +14,9 @@ func (c *Controller) Login(user domain.User) (domain.AuthToken, error) {
 	if err != nil {
 		return domain.AuthToken{}, errors.New("no user found with the inputted username")
 	}
+	if existingUser.Password == "" {
+		return domain.AuthToken{}, errors.New("invalid credentials")
+	}
 	isValid := checkPasswordHash(user.Password, existingUser.Password)
 	if !isValid {
 		return domain.AuthToken{}, errors.New("invalid credentials")

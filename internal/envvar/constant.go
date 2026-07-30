@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func Port() string {
@@ -43,6 +44,17 @@ func PostgresDSN() string {
 // GoogleOAuthClientID is the OAuth client ID used as the audience for Google ID tokens.
 func GoogleOAuthClientID() string {
 	return os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
+}
+
+// GeminiAPIKey powers the AI critic worker.
+func GeminiAPIKey() string {
+	return os.Getenv("GEMINI_API_KEY")
+}
+
+// BotWorkerEnabled starts the in-process bot poller with the API server.
+func BotWorkerEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("BOT_WORKER_ENABLED")))
+	return v == "1" || v == "true" || v == "yes"
 }
 
 func DBHost() string {

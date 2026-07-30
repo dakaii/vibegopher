@@ -16,7 +16,9 @@ A Go REST API for social media functionality with posts, comments, and user mana
 - **Backend**: Go with Gorilla Mux router
 - **ORM**: GORM (queries only — not schema ownership)
 - **Migrations**: [goose](https://github.com/pressly/goose) SQL migrations in `db/migrations`
-- **Authentication**: JWT tokens (Google Auth planned for cloud)
+- **Authentication**: Google Sign-In (primary) + app JWT; password auth kept for legacy/tests
+- **Frontend**: Vue 3 + TypeScript 7 SPA in `frontend/` (Biome lint/format)
+- **AI**: `@vibe_critic` bot worker (Gemini) on async `bot_jobs`
 - **Containerization**: Docker & Docker Compose
 - **Cloud / IaC**: Pulumi → GCP (Cloud Run, Artifact Registry, Secret Manager)
 - **CI/CD**: GitHub Actions (test, deploy + migrate, destroy)
@@ -214,7 +216,20 @@ Infrastructure lives in [`infra/`](./infra/). Secret placement (GCP Secret Manag
 
 Set `destroy_secrets=true` on the destroy workflow only when you intentionally want Secret Manager secrets removed.
 
-Bootstrap and required GitHub variables/secrets: see [`infra/README.md`](./infra/README.md).
+Bootstrap and required GitHub variables/secrets: see [`infra/README.md`](./infra/README.md) and [`docs/DEPLOY.md`](./docs/DEPLOY.md).
+
+## 🖥️ Frontend (Vue 3)
+
+```bash
+cd frontend
+cp .env.example .env   # VITE_GOOGLE_CLIENT_ID + VITE_API_BASE_URL
+npm install
+npm run dev            # http://localhost:5173
+```
+
+## 🤖 AI critic bot
+
+New posts/comments enqueue `bot_jobs`. With `BOT_WORKER_ENABLED=true` (default in Cloud Run / local compose), the API process polls and `@vibe_critic` replies via Gemini. Standalone worker: `go run ./cmd/bot`.
 
 ## 🤝 Contributing
 

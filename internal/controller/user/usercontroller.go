@@ -1,24 +1,34 @@
 package user
 
 import (
+	"github.com/dakaii/vibegopher/internal/auth"
 	"github.com/dakaii/vibegopher/internal/domain"
 	"github.com/dakaii/vibegopher/internal/repository/userrepo"
+	"github.com/google/uuid"
 )
 
-// declaring the repository interface in the controller package allows us to easily swap out the actual implementation, enforcing loose coupling.
 type repository interface {
 	GetExistingUser(username string) (*domain.User, error)
+	GetByGoogleSub(googleSub string) (*domain.User, error)
+	GetByID(id uuid.UUID) (*domain.User, error)
 	CreateUser(user domain.User) (*domain.User, error)
+	UpsertGoogleUser(profile domain.GoogleProfile) (*domain.User, error)
 }
 
-// Controller contains the service, which contains database-related logic, as an injectable dependency, allowing us to decouple business logic from db logic.
 type Controller struct {
-	service repository
+	service         repository
+	googleValidator auth.GoogleTokenValidator
 }
 
-// InitController initializes the user controller.
 func InitController(userRepo *userrepo.UserRepo) *Controller {
 	return &Controller{
-		service: userRepo,
+		service:         userRepo,
+		googleValidator: auth.NewGoogleTokenValidator(),
 	}
+}
+
+// WithGoogleValidator overrides the Google token validator (tests).
+func (c *Controller) WithGoogleValidator(v auth.GoogleTokenValidator) *Controller {
+	c.googleValidator = v
+	return c
 }
