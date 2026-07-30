@@ -1,13 +1,17 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { api } from '../api'
+import type { Comment, Post } from '../types'
 
-const props = defineProps({
-  post: { type: Object, required: true },
-})
-const emit = defineEmits(['changed'])
+const props = defineProps<{
+  post: Post
+}>()
 
-const comments = ref([])
+const emit = defineEmits<{
+  changed: []
+}>()
+
+const comments = ref<Comment[]>([])
 const draft = ref('')
 const error = ref('')
 const busy = ref(false)
@@ -16,7 +20,7 @@ async function loadComments() {
   try {
     comments.value = (await api.comments(props.post.id)) || []
   } catch (e) {
-    error.value = e.message
+    error.value = e instanceof Error ? e.message : 'Failed to load comments'
   }
 }
 
@@ -31,13 +35,13 @@ async function submitComment() {
     await loadComments()
     emit('changed')
   } catch (e) {
-    error.value = e.message
+    error.value = e instanceof Error ? e.message : 'Failed to comment'
   } finally {
     busy.value = false
   }
 }
 
-function formatTime(value) {
+function formatTime(value?: string) {
   if (!value) return ''
   try {
     return new Date(value).toLocaleString()
@@ -46,7 +50,9 @@ function formatTime(value) {
   }
 }
 
-onMounted(loadComments)
+onMounted(() => {
+  void loadComments()
+})
 </script>
 
 <template>
@@ -61,7 +67,10 @@ onMounted(loadComments)
 
     <div class="comments">
       <div v-for="c in comments" :key="c.id" class="comment">
-        <strong class="post-author" :class="{ bot: c.user?.is_bot || c.user?.username === 'vibe_critic' }">
+        <strong
+          class="post-author"
+          :class="{ bot: c.user?.is_bot || c.user?.username === 'vibe_critic' }"
+        >
           @{{ c.user?.username || 'unknown' }}
         </strong>
         <span class="post-meta"> · {{ formatTime(c.created_at) }}</span>
@@ -73,7 +82,12 @@ onMounted(loadComments)
       <textarea v-model="draft" maxlength="280" rows="2" placeholder="Reply…" />
       <div class="row" style="margin-top: 0.55rem">
         <span class="muted">{{ draft.length }}/280</span>
-        <button class="btn btn-ghost" type="button" :disabled="!draft.trim() || busy" @click="submitComment">
+        <button
+          class="btn btn-ghost"
+          type="button"
+          :disabled="!draft.trim() || busy"
+          @click="submitComment"
+        >
           Reply
         </button>
       </div>

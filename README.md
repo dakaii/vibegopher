@@ -17,7 +17,7 @@ A Go REST API for social media functionality with posts, comments, and user mana
 - **ORM**: GORM (queries only — not schema ownership)
 - **Migrations**: [goose](https://github.com/pressly/goose) SQL migrations in `db/migrations`
 - **Authentication**: Google Sign-In (primary) + app JWT; password auth kept for legacy/tests
-- **Frontend**: Vue 3 SPA in `frontend/`
+- **Frontend**: Vue 3 + TypeScript 7 SPA in `frontend/` (Biome lint/format)
 - **AI**: `@vibe_critic` bot worker (Gemini) on async `bot_jobs`
 - **Containerization**: Docker & Docker Compose
 - **Cloud / IaC**: Pulumi → GCP (Cloud Run, Artifact Registry, Secret Manager)

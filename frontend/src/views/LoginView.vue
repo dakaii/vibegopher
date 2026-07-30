@@ -1,6 +1,6 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
 import { setToken } from '../auth'
 
@@ -10,14 +10,15 @@ const error = ref('')
 const ready = ref(false)
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
-async function handleCredential(response) {
+async function handleCredential(response: GoogleCredentialResponse) {
   error.value = ''
   try {
     const result = await api.googleAuth(response.credential)
     setToken(result.token)
-    router.replace(route.query.next || '/')
+    const next = typeof route.query.next === 'string' ? route.query.next : '/'
+    await router.replace(next)
   } catch (e) {
-    error.value = e.message || 'Google sign-in failed'
+    error.value = e instanceof Error ? e.message : 'Google sign-in failed'
   }
 }
 
@@ -49,18 +50,18 @@ onMounted(() => {
     ready.value = true
     return
   }
-  if (window.google?.accounts?.id) {
+  if (window.google?.accounts.id) {
     renderButton()
     return
   }
-  const timer = setInterval(() => {
-    if (window.google?.accounts?.id) {
-      clearInterval(timer)
+  const timer = window.setInterval(() => {
+    if (window.google?.accounts.id) {
+      window.clearInterval(timer)
       renderButton()
     }
   }, 100)
-  setTimeout(() => {
-    clearInterval(timer)
+  window.setTimeout(() => {
+    window.clearInterval(timer)
     ready.value = true
   }, 5000)
 })
