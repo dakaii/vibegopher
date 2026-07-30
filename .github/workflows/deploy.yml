@@ -101,8 +101,20 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
-          cache-dependency-path: infra/go.sum
+          go-version: "1.24"
+          cache-dependency-path: |
+            go.sum
+            infra/go.sum
+
+      - name: Run database migrations (Neon)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret is required to migrate before deploy"
+            exit 1
+          fi
+          go run ./cmd/migrate up
 
       - name: Set up Pulumi
         uses: pulumi/actions@v6
@@ -132,6 +144,7 @@ jobs:
             echo ""
             echo "- Image: \`${{ steps.meta.outputs.image_url }}\`"
             echo "- Stack: \`${PULUMI_STACK}\`"
+            echo "- Migrations: goose \`up\` against Neon (\`DATABASE_URL\`)"
             echo "- Cloud Run URI: $(pulumi stack output cloudRunUri)"
             echo "- Secret Manager protected: $(pulumi stack output protectSecrets)"
           } >> "$GITHUB_STEP_SUMMARY"

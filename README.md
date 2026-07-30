@@ -7,19 +7,19 @@ A Go REST API for social media functionality with posts, comments, and user mana
 - **User Management**: Registration, login, authentication with JWT
 - **Posts**: Create, read, update, delete posts
 - **Comments**: Comment on posts with full CRUD operations
-- **Database**: PostgreSQL with Atlas migrations for production
-- **Testing**: Comprehensive test suite with auto-migration
+- **Database**: PostgreSQL (Neon in cloud) with versioned goose migrations
+- **Testing**: Same goose migrations as local/prod (no AutoMigrate drift)
 - **Docker**: Containerized application for easy deployment
 
 ## 🛠️ Tech Stack
 
 - **Backend**: Go with Gorilla Mux router
-- **Database**: PostgreSQL with GORM ORM (Neon in cloud)
-- **Migrations**: Atlas for production, GORM AutoMigrate for testing
+- **ORM**: GORM (queries only — not schema ownership)
+- **Migrations**: [goose](https://github.com/pressly/goose) SQL migrations in `db/migrations`
 - **Authentication**: JWT tokens (Google Auth planned for cloud)
 - **Containerization**: Docker & Docker Compose
 - **Cloud / IaC**: Pulumi → GCP (Cloud Run, Artifact Registry, Secret Manager)
-- **CI/CD**: GitHub Actions (test, deploy, destroy)
+- **CI/CD**: GitHub Actions (test, deploy + migrate, destroy)
 - **Testing**: Go testing with test factories
 
 ## 📋 Prerequisites
@@ -48,20 +48,14 @@ make build
 make run-db
 ```
 
-### 4. Set Up the Database
+### 4. Migrate & Start
 
 ```bash
-# Create the development database
-make create-dev-db
+# Apply versioned migrations (goose)
+make migrate
 
-# Apply the database schema
-docker exec -i vibegopher-postgresql-dev1 psql -U postgres -d vibegopher_development < schema.sql
-```
-
-### 5. Start the Application
-
-```bash
-docker compose up backend
+# Or start DB + migrate + API together
+make up
 ```
 
 The API will be available at `http://localhost:8081`
@@ -77,16 +71,14 @@ make build
 # Start PostgreSQL database
 make run-db
 
-# Create development database
-make create-dev-db
-
-# Drop development database (for cleanup)
-make drop-dev-db
-
-# Run migrations (when available)
+# Apply / check migrations
 make migrate
+make migrate-status
 
-# Start the full application
+# Create a new migration file
+make create-migration NAME=add_something
+
+# Start DB + migrate + API
 make up
 ```
 
@@ -141,12 +133,7 @@ make clean-images
 
 ## 🧪 Testing
 
-The application uses a hybrid approach for database management:
-
-- **Production**: Atlas migrations for versioned, reviewed schema changes
-- **Testing**: GORM AutoMigrate for fast, automatic schema setup
-
-Run tests with:
+Tests apply the same goose migrations as local/CI (`db/migrations`), then truncate app tables between cases (the `goose_db_version` table is kept).
 
 ```bash
 make test
@@ -190,9 +177,9 @@ Authorization: Bearer <your-jwt-token>
 
 ### Development Containers
 
-- **backend**: Go application container
-- **postgresql-dev**: PostgreSQL database for development
-- **atlas-dev**: Atlas CLI for migrations
+- **backend**: API container (production Dockerfile)
+- **postgresql-dev**: PostgreSQL 16 for development
+- **migrator**: one-shot `go run ./cmd/migrate` (golang image)
 
 ### Environment Files
 
@@ -204,14 +191,16 @@ Authorization: Bearer <your-jwt-token>
 Key environment variables:
 
 ```bash
-PORT=8081
+PORT=8080
 AUTH_SECRET=secret_key
-POSTGRES_HOST=host.docker.internal
+POSTGRES_HOST=postgresql-dev
 POSTGRES_DB=vibegopher_development
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
-POSTGRES_PORT=5431
+POSTGRES_PORT=5432
 HASH_COST=14
+# Cloud / Neon:
+# DATABASE_URL=postgres://user:pass@host/db?sslmode=require
 ```
 
 ## ☁️ GCP deploy (Pulumi + GitHub Actions)
@@ -220,7 +209,7 @@ Infrastructure lives in [`infra/`](./infra/). Secret placement (GCP Secret Manag
 
 | Workflow | Trigger | Behavior |
 |----------|---------|----------|
-| [deploy.yml](./.github/workflows/deploy.yml) | Push to `main` / manual | Build image → Artifact Registry → sync secrets → `pulumi up` |
+| [deploy.yml](./.github/workflows/deploy.yml) | Push to `main` / manual | Build image → sync secrets → **goose migrate** → `pulumi up` |
 | [destroy.yml](./.github/workflows/destroy.yml) | Manual (`confirm=destroy`) | `pulumi destroy --exclude-protected` — **keeps Secret Manager by default** |
 
 Set `destroy_secrets=true` on the destroy workflow only when you intentionally want Secret Manager secrets removed.
@@ -261,18 +250,14 @@ make run-db
 **Schema not applied:**
 
 ```bash
-# Apply schema manually
-docker exec -i vibegopher-postgresql-dev1 psql -U postgres -d vibegopher_development < schema.sql
+make migrate
+make migrate-status
 ```
 
 **Clean start:**
 
 ```bash
-# Complete cleanup and restart
 make down
 make build
-make run-db
-make create-dev-db
-docker exec -i vibegopher-postgresql-dev1 psql -U postgres -d vibegopher_development < schema.sql
-docker compose up backend
+make up
 ```

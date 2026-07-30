@@ -70,7 +70,7 @@ No long-lived GCP JSON keys — deploy uses **Workload Identity Federation**.
 |------|--------|
 | Neon project / branch / roles | Neon console (or Neon API), not Pulumi GCP |
 | Connection string | GitHub secret → synced to GCP `DATABASE_URL` |
-| DB schema | Atlas migrations in this repo |
+| DB schema | goose migrations in `db/migrations` (applied by deploy workflow, not Pulumi) |
 
 ## Destroy behavior
 
