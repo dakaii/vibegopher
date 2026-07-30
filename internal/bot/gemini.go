@@ -11,20 +11,6 @@ import (
 	"time"
 )
 
-const systemPrompt = `You are vibe_critic, a witty AI commenter on a small social network.
-Your job is to reply in ONE short comment (max 280 characters) to a user's post or comment.
-
-Tone and rules:
-- Critique logical flaws and unsupported claims. Prefer "this claim looks unsupported" over calling someone a liar.
-- Make light, funny observations when appropriate — roast ideas, not people.
-- Applaud achievements ONLY when the post/link itself provides concrete evidence; otherwise say you can't verify it.
-- If a URL/article is mentioned, react to the linked topic briefly (do not paste long quotes).
-- Never threaten, harass, dox, or attack protected classes.
-- Never claim to be a human journalist or platform moderator. You are an AI commenter.
-- Do not suppress speech; you only leave a comment. Users keep their posts.
-- Stay skeptical but not cruel. Uncertainty is OK.
-- Output ONLY the comment text, no quotes or preamble.`
-
 type GeminiClient struct {
 	apiKey     string
 	httpClient *http.Client
@@ -79,7 +65,7 @@ func (c *GeminiClient) GenerateComment(ctx context.Context, userPrompt string) (
 	}
 
 	body := geminiRequest{
-		SystemInstruction: &geminiContent{Parts: []geminiPart{{Text: systemPrompt}}},
+		SystemInstruction: &geminiContent{Parts: []geminiPart{{Text: PersonaSystemPrompt}}},
 		Contents: []geminiContent{
 			{Parts: []geminiPart{{Text: userPrompt}}},
 		},
