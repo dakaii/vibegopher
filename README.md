@@ -14,10 +14,12 @@ A Go REST API for social media functionality with posts, comments, and user mana
 ## 🛠️ Tech Stack
 
 - **Backend**: Go with Gorilla Mux router
-- **Database**: PostgreSQL with GORM ORM
+- **Database**: PostgreSQL with GORM ORM (Neon in cloud)
 - **Migrations**: Atlas for production, GORM AutoMigrate for testing
-- **Authentication**: JWT tokens
+- **Authentication**: JWT tokens (Google Auth planned for cloud)
 - **Containerization**: Docker & Docker Compose
+- **Cloud / IaC**: Pulumi → GCP (Cloud Run, Artifact Registry, Secret Manager)
+- **CI/CD**: GitHub Actions (test, deploy, destroy)
 - **Testing**: Go testing with test factories
 
 ## 📋 Prerequisites
@@ -211,6 +213,19 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_PORT=5431
 HASH_COST=14
 ```
+
+## ☁️ GCP deploy (Pulumi + GitHub Actions)
+
+Infrastructure lives in [`infra/`](./infra/). Secret placement (GCP Secret Manager vs Pulumi vs GitHub) is documented in [`infra/SECRETS.md`](./infra/SECRETS.md).
+
+| Workflow | Trigger | Behavior |
+|----------|---------|----------|
+| [deploy.yml](./.github/workflows/deploy.yml) | Push to `main` / manual | Build image → Artifact Registry → sync secrets → `pulumi up` |
+| [destroy.yml](./.github/workflows/destroy.yml) | Manual (`confirm=destroy`) | `pulumi destroy --exclude-protected` — **keeps Secret Manager by default** |
+
+Set `destroy_secrets=true` on the destroy workflow only when you intentionally want Secret Manager secrets removed.
+
+Bootstrap and required GitHub variables/secrets: see [`infra/README.md`](./infra/README.md).
 
 ## 🤝 Contributing
 

@@ -22,6 +22,17 @@ func AuthSecret() string {
 	return secret
 }
 
+// DatabaseURL returns a full Postgres URL when set (Neon / Cloud Run Secret Manager).
+// When empty, callers should fall back to discrete POSTGRES_* variables.
+func DatabaseURL() string {
+	return os.Getenv("DATABASE_URL")
+}
+
+// GoogleOAuthClientID is the OAuth client ID used as the audience for Google ID tokens.
+func GoogleOAuthClientID() string {
+	return os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
+}
+
 func DBHost() string {
 	host, exists := os.LookupEnv("POSTGRES_HOST")
 	if !exists {

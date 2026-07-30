@@ -16,15 +16,17 @@ import (
 // GetDatabase returns a database instance.
 // If isTest is true, it will auto-migrate the schema for testing.
 func GetDatabase(isTest ...bool) *gorm.DB {
-	user := envvar.DBUser()
-	password := envvar.DBPassword()
-	dbname := envvar.DBName()
-	dbhost := envvar.DBHost()
-	dbport := envvar.DBPort()
-
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo",
-		dbhost, user, password, dbname, dbport)
+	dsn := envvar.DatabaseURL()
+	if dsn == "" {
+		user := envvar.DBUser()
+		password := envvar.DBPassword()
+		dbname := envvar.DBName()
+		dbhost := envvar.DBHost()
+		dbport := envvar.DBPort()
+		dsn = fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo",
+			dbhost, user, password, dbname, dbport)
+	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {

@@ -1,0 +1,34 @@
+name: vibegopher
+description: GCP infrastructure for VibeGopher (Cloud Run, Artifact Registry, Secret Manager, GitHub WIF)
+runtime: go
+config:
+  vibegopher:protectSecrets:
+    description: When true (default), Secret Manager secrets and the Secret Manager API enablement are protected and survive pulumi destroy --exclude-protected
+    default: true
+  vibegopher:region:
+    description: GCP region for Cloud Run and Artifact Registry
+    default: us-central1
+  vibegopher:serviceName:
+    description: Cloud Run service name
+    default: vibegopher-api
+  vibegopher:artifactRepoId:
+    description: Artifact Registry repository id
+    default: vibegopher
+  vibegopher:imageName:
+    description: Container image name within the Artifact Registry repo
+    default: api
+  vibegopher:imageTag:
+    description: Container image tag to deploy
+    default: latest
+  vibegopher:githubOwner:
+    description: GitHub org or user that owns the repo (for Workload Identity Federation)
+    default: ""
+  vibegopher:githubRepo:
+    description: GitHub repository name (for Workload Identity Federation)
+    default: vibegopher
+  vibegopher:createPlaceholderSecretVersions:
+    description: Create placeholder Secret Manager versions so Cloud Run can reference secrets before real values are synced
+    default: true
+  vibegopher:enableCloudRun:
+    description: Deploy the Cloud Run API service (set false for first bootstrap before any image has been pushed)
+    default: true

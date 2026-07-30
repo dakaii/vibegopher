@@ -1,3 +1,11 @@
 .vscode
 build
 testing.test
+
+# Pulumi
+infra/Pulumi.*.yaml
+!infra/Pulumi.yaml
+!infra/Pulumi.*.yaml.example
+infra/vendor/
+*.pulumi/
+.pulumi/

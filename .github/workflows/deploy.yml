@@ -1,0 +1,137 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Container image tag (default commit SHA)
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-gcp-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PULUMI_STACK: ${{ vars.PULUMI_STACK || 'dev' }}
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  AR_REPO: vibegopher
+  IMAGE_NAME: api
+
+jobs:
+  deploy:
+    name: Build, sync secrets, pulumi up
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required GitHub configuration
+        run: |
+          missing=0
+          for v in GCP_PROJECT_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_DEPLOY_SERVICE_ACCOUNT; do
+            if [ -z "${!v}" ]; then
+              echo "Missing repository variable: $v"
+              missing=1
+            fi
+          done
+          if [ -z "${PULUMI_ACCESS_TOKEN}" ]; then
+            echo "Missing repository secret: PULUMI_ACCESS_TOKEN"
+            missing=1
+          fi
+          exit "$missing"
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Artifact Registry Docker auth
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Resolve image tag
+        id: meta
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_SHA}"
+          fi
+          IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "image_url=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image_url }}
+            ${{ steps.meta.outputs.image }}:latest
+
+      - name: Sync runtime secrets into Secret Manager
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          chmod +x infra/scripts/sync-secrets.sh
+          ./infra/scripts/sync-secrets.sh
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: infra/go.sum
+
+      - name: Set up Pulumi
+        uses: pulumi/actions@v6
+
+      - name: Pulumi up
+        working-directory: infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          pulumi stack select "${PULUMI_STACK}"
+          pulumi config set gcp:project "${GCP_PROJECT_ID}"
+          pulumi config set vibegopher:region "${GCP_REGION}"
+          pulumi config set vibegopher:imageTag "${{ steps.meta.outputs.tag }}"
+          # Keep Secret Manager protected unless an operator changed stack config.
+          pulumi config set vibegopher:protectSecrets true
+          # Image was just pushed, so Cloud Run can be enabled even after a secrets-only bootstrap.
+          pulumi config set vibegopher:enableCloudRun true
+          pulumi up --yes
+
+      - name: Write deployment summary
+        working-directory: infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          {
+            echo "## Deployed"
+            echo ""
+            echo "- Image: \`${{ steps.meta.outputs.image_url }}\`"
+            echo "- Stack: \`${PULUMI_STACK}\`"
+            echo "- Cloud Run URI: $(pulumi stack output cloudRunUri)"
+            echo "- Secret Manager protected: $(pulumi stack output protectSecrets)"
+          } >> "$GITHUB_STEP_SUMMARY"
