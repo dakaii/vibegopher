@@ -1,47 +1,34 @@
 package database
 
 import (
-	"fmt"
+	"context"
 	"log"
+	"time"
 
+	"github.com/dakaii/vibegopher/db"
 	"github.com/dakaii/vibegopher/internal/envvar"
-	"github.com/dakaii/vibegopher/internal/repository/commentrepo"
-	"github.com/dakaii/vibegopher/internal/repository/postrepo"
-	"github.com/dakaii/vibegopher/internal/repository/userrepo"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 // GetDatabase returns a database instance.
-// If isTest is true, it will auto-migrate the schema for testing.
+// If isTest is true, goose migrations are applied first (same SQL as CI/prod).
 func GetDatabase(isTest ...bool) *gorm.DB {
-	user := envvar.DBUser()
-	password := envvar.DBPassword()
-	dbname := envvar.DBName()
-	dbhost := envvar.DBHost()
-	dbport := envvar.DBPort()
+	dsn := envvar.PostgresDSN()
 
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo",
-		dbhost, user, password, dbname, dbport)
+	if len(isTest) > 0 && isTest[0] {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		if err := db.Up(ctx, dsn); err != nil {
+			log.Fatal("Failed to apply database migrations:", err)
+		}
+	}
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	gdb, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
 
-	// Auto-migrate schema if this is for testing
-	if len(isTest) > 0 && isTest[0] {
-		err = db.AutoMigrate(
-			&userrepo.UserEntity{},
-			&postrepo.PostEntity{},
-			&commentrepo.CommentEntity{},
-		)
-		if err != nil {
-			log.Fatal("Failed to auto-migrate database schema:", err)
-		}
-	}
-
-	return db
+	return gdb
 }

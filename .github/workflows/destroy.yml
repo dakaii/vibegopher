@@ -1,0 +1,105 @@
+name: Destroy GCP infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm'
+        required: true
+        type: string
+      destroy_secrets:
+        description: Also destroy Secret Manager secrets/API (default false — secrets are protected)
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: destroy-gcp
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PULUMI_STACK: ${{ vars.PULUMI_STACK || 'dev' }}
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+
+jobs:
+  destroy:
+    name: Pulumi destroy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm destroy
+        run: |
+          if [ "${{ inputs.confirm }}" != "destroy" ]; then
+            echo 'Refusing to run: confirmation input must be exactly "destroy"'
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: infra/go.sum
+
+      - name: Set up Pulumi
+        uses: pulumi/actions@v6
+
+      - name: Destroy (keep Secret Manager)
+        if: ${{ inputs.destroy_secrets == false }}
+        working-directory: infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          pulumi stack select "${PULUMI_STACK}"
+          pulumi config set vibegopher:protectSecrets true
+          # Ensure protect flags are applied before destroy.
+          pulumi up --yes --skip-preview
+          echo "Destroying stack while excluding protected Secret Manager resources..."
+          pulumi destroy --yes --exclude-protected
+
+      - name: Destroy including Secret Manager
+        if: ${{ inputs.destroy_secrets == true }}
+        working-directory: infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          pulumi stack select "${PULUMI_STACK}"
+          echo "WARNING: Unprotecting and destroying Secret Manager resources"
+          pulumi config set vibegopher:protectSecrets false
+          pulumi up --yes --skip-preview
+          pulumi destroy --yes
+
+      - name: Summary
+        run: |
+          {
+            echo "## Destroy finished"
+            echo ""
+            if [ "${{ inputs.destroy_secrets }}" = "true" ]; then
+              echo "Secret Manager resources in this stack were destroyed."
+            else
+              echo "Secret Manager API + secrets were **kept** (\`--exclude-protected\`)."
+            fi
+            echo ""
+            echo "### Re-deploy is not automatic"
+            echo "This destroy also removes Workload Identity Federation and the deploy service account."
+            echo "GitHub Actions **cannot** authenticate until you bootstrap again locally:"
+            echo ""
+            echo '```bash'
+            echo 'cd infra && pulumi config set vibegopher:enableCloudRun false && pulumi up'
+            echo '# copy workloadIdentityProvider + deployServiceAccount back into GitHub variables'
+            echo '```'
+            echo ""
+            echo "Then run the Deploy workflow (or push to \`main\`)."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,7 +1,6 @@
 package testing
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/dakaii/vibegopher/internal/envvar"
@@ -9,19 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// TruncateAllTables cleans up all tables after tests
+// TruncateAllTables cleans up application tables after tests.
+// The goose version table is left intact so migrations are not re-applied from scratch every test.
 func TruncateAllTables() {
-	password := envvar.DBPassword()
-	dbname := envvar.DBName()
-	dbhost := envvar.DBHost()
-	dbport := envvar.DBPort()
-	user := envvar.DBUser()
-
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo",
-		dbhost, user, password, dbname, dbport)
-
-	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	gormDB, err := gorm.Open(postgres.Open(envvar.PostgresDSN()), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,22 +29,25 @@ func TruncateAllTables() {
 		return
 	}
 
-	// Delete all rows from all tables
 	err = gormDB.Exec(`
 		DO $$
 		DECLARE
 			r RECORD;
 		BEGIN
-			FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
-				EXECUTE 'DELETE FROM ' || quote_ident(r.tablename);
+			FOR r IN (
+				SELECT tablename
+				FROM pg_tables
+				WHERE schemaname = current_schema()
+				  AND tablename <> 'goose_db_version'
+			) LOOP
+				EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' RESTART IDENTITY CASCADE';
 			END LOOP;
 		END $$;
 	`).Error
 	if err != nil {
-		log.Println("Failed to delete all rows from all tables:", err)
+		log.Println("Failed to truncate tables:", err)
 	}
 
-	// Re-enable foreign key constraints
 	err = gormDB.Exec("SET session_replication_role = DEFAULT;").Error
 	if err != nil {
 		log.Println("Failed to re-enable foreign key constraints:", err)

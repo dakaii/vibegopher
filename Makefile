@@ -1,35 +1,22 @@
-.PHONY: build up down
+.PHONY: build up down test migrate migrate-status migrate-down create-migration run-db create-dev-db drop-dev-db
 
-# Atlas migration commands
-create_migration:
-	@echo "Creating migration: $(NAME)"
-	@echo "Make sure database is running: make run-db"
-	@echo "Creating temporary dev database if needed..."
-	@docker exec vibegopher-postgresql-dev1 psql -U postgres -c "CREATE DATABASE IF NOT EXISTS atlas_dev;" 2>/dev/null || true
-	docker compose run --rm atlas-dev migrate diff $(NAME) --env dev --dev-url "postgres://postgres:postgres@vibegopher-postgresql-dev1:5432/atlas_dev?sslmode=disable"
+# --- Database migrations (goose) ---
+# Same SQL runs in local Docker, tests, and GitHub Actions deploy (Neon).
 
 migrate:
-	docker compose run --rm atlas-dev migrate apply --env dev
+	docker compose run --rm migrator up
 
 migrate-status:
-	docker compose run --rm atlas-dev migrate status --env dev
+	docker compose run --rm migrator status
 
-migrate-test-db:
-	echo "Database setup is now handled automatically by the test container"
+migrate-down:
+	docker compose run --rm migrator down
 
-# Schema diff commands (for development only)
-schema-apply-dev:
-	@echo "⚠️  WARNING: This applies schema changes directly without migration files"
-	@echo "⚠️  Only use this for local development!"
-	@read -p "Continue? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	docker compose run --rm atlas-dev schema apply --env dev
-
-schema-diff-preview:
-	@echo "Previewing schema differences..."
-	docker compose run --rm atlas-dev schema diff --env dev
-
-schema-inspect:
-	docker compose run --rm atlas-dev schema inspect --env dev
+# Usage: make create-migration NAME=add_google_sub
+create-migration:
+	@test -n "$(NAME)" || (echo 'Usage: make create-migration NAME=add_something'; exit 1)
+	go run github.com/pressly/goose/v3/cmd/goose@v3.24.3 \
+		-dir db/migrations create $(NAME) sql
 
 create-dev-db:
 	docker exec -it vibegopher-postgresql-dev1 psql -U postgres -c "CREATE DATABASE vibegopher_development;"
@@ -38,13 +25,14 @@ drop-dev-db:
 	docker exec -it vibegopher-postgresql-dev1 psql -U postgres -c "DROP DATABASE vibegopher_development;"
 
 build:
-	docker compose build
+	docker compose build backend
 
 run-db:
 	docker compose up -d postgresql-dev
 
 up:
 	docker compose up -d postgresql-dev
+	$(MAKE) migrate
 	docker compose up backend && docker compose rm -fsv
 
 down:
@@ -58,10 +46,10 @@ clear-test:
 	docker volume remove vibegopher_postgres_test_data
 
 binary:
-	docker compose run --rm backend go build -o build ./cmd/server/main.go
+	docker compose run --rm --no-deps --entrypoint go migrator build -o build ./cmd/server
 
 clean-containers:
-	docker rm -f $(docker ps -a -q)
+	docker rm -f $$(docker ps -a -q)
 
 clean-images:
 	docker image prune

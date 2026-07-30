@@ -254,7 +254,7 @@ All endpoints may return the following error format:
 1. Make sure PostgreSQL is running
 2. Run migrations:
    ```bash
-   make migrate-up
+   make migrate
    ```
 3. Start the development server:
    ```bash

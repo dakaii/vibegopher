@@ -11,7 +11,7 @@ services:
       - test-network
 
   postgresql-test:
-    image: postgres:latest
+    image: postgres:16
     volumes:
       - postgres_test_data:/var/lib/postgresql/data/
     ports:
