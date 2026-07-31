@@ -25,7 +25,7 @@ func (h *Handlers) CreateComment(w http.ResponseWriter, r *http.Request, user do
 
 	createdComment, err := h.controllers.CommentController.CreateComment(comment)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusBadRequest)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (h *Handlers) GetCommentsByPostID(w http.ResponseWriter, r *http.Request) {
 
 	comments, err := h.controllers.CommentController.GetCommentsByPostID(postID)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *Handlers) GetCommentsByUserID(w http.ResponseWriter, r *http.Request) {
 
 	comments, err := h.controllers.CommentController.GetCommentsByUserID(userID)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *Handlers) GetCommentByID(w http.ResponseWriter, r *http.Request) {
 
 	comment, err := h.controllers.CommentController.GetCommentByID(id)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusNotFound)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -128,7 +128,7 @@ func (h *Handlers) UpdateComment(w http.ResponseWriter, r *http.Request, user do
 
 	updatedComment, err := h.controllers.CommentController.UpdateComment(id, updates)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusBadRequest)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (h *Handlers) DeleteComment(w http.ResponseWriter, r *http.Request, user do
 
 	err = h.controllers.CommentController.DeleteComment(id)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 

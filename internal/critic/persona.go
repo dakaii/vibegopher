@@ -1,4 +1,4 @@
-package bot
+package critic
 
 // PersonaSystemPrompt is the safety + voice brief for @vibe_critic.
 // It is a commenter, not a moderator: it never hides, ranks down, or punishes posts.

@@ -1,10 +1,9 @@
-package bot
+package critic
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -19,6 +18,7 @@ import (
 
 var urlRegexp = regexp.MustCompile(`https?://[^\s]+`)
 
+// Worker polls critic jobs and posts @vibe_critic replies.
 type Worker struct {
 	jobs     *botjobrepo.BotJobRepo
 	posts    *postrepo.PostRepo
@@ -35,22 +35,22 @@ func NewWorker(jobs *botjobrepo.BotJobRepo, posts *postrepo.PostRepo, comments *
 		comments: comments,
 		gemini:   NewGeminiClient(envvar.GeminiAPIKey()),
 		interval: 3 * time.Second,
-		httpGet:  fetchURLSnippet,
+		httpGet:  FetchURLSnippet,
 	}
 }
 
 func (w *Worker) Run(ctx context.Context) {
-	log.Println("bot worker started")
+	log.Println("critic worker started")
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
 	for {
 		if err := w.ProcessOne(ctx); err != nil {
-			log.Printf("bot worker: %v", err)
+			log.Printf("critic worker: %v", err)
 		}
 		select {
 		case <-ctx.Done():
-			log.Println("bot worker stopped")
+			log.Println("critic worker stopped")
 			return
 		case <-ticker.C:
 		}
@@ -73,7 +73,6 @@ func (w *Worker) ProcessOne(ctx context.Context) error {
 		return err
 	}
 
-	// Skip empty / no-op
 	if strings.TrimSpace(reply) == "" {
 		return w.jobs.MarkDone(job.ID)
 	}
@@ -111,7 +110,7 @@ func (w *Worker) buildReply(ctx context.Context, job *domain.BotJob) (string, er
 		if err != nil {
 			return "", err
 		}
-		if post.UserID == domain.BotUserID {
+		if post.UserID == domain.BotUserID || post.User.IsBot {
 			return "", nil
 		}
 		author = post.User.Username
@@ -122,7 +121,7 @@ func (w *Worker) buildReply(ctx context.Context, job *domain.BotJob) (string, er
 		if err != nil {
 			return "", err
 		}
-		if c.UserID == domain.BotUserID {
+		if c.UserID == domain.BotUserID || c.User.IsBot {
 			return "", nil
 		}
 		author = c.User.Username
@@ -147,56 +146,13 @@ func (w *Worker) collectLinkContext(ctx context.Context, content string) string 
 	}
 	var b strings.Builder
 	for _, u := range urls {
+		u = strings.TrimRight(u, ".,);]")
 		snippet, err := w.httpGet(ctx, u)
 		if err != nil {
 			b.WriteString(fmt.Sprintf("- %s: (fetch failed: %v)\n", u, err))
 			continue
 		}
 		b.WriteString(fmt.Sprintf("- %s: %s\n", u, snippet))
-	}
-	return b.String()
-}
-
-func fetchURLSnippet(ctx context.Context, rawURL string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("User-Agent", "VibeGopherBot/1.0")
-	client := &http.Client{Timeout: 8 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("status %d", resp.StatusCode)
-	}
-	buf := make([]byte, 4096)
-	n, _ := resp.Body.Read(buf)
-	text := stripTags(string(buf[:n]))
-	text = strings.Join(strings.Fields(text), " ")
-	if len(text) > 500 {
-		text = text[:500] + "..."
-	}
-	if text == "" {
-		return "(empty body)", nil
-	}
-	return text, nil
-}
-
-func stripTags(s string) string {
-	var b strings.Builder
-	inTag := false
-	for _, r := range s {
-		switch {
-		case r == '<':
-			inTag = true
-		case r == '>':
-			inTag = false
-		case !inTag:
-			b.WriteRune(r)
-		}
 	}
 	return b.String()
 }

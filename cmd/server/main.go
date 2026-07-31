@@ -11,14 +11,18 @@ import (
 	"time"
 
 	"github.com/dakaii/vibegopher/internal/api"
-	"github.com/dakaii/vibegopher/internal/bot"
 	"github.com/dakaii/vibegopher/internal/controller"
+	"github.com/dakaii/vibegopher/internal/critic"
 	"github.com/dakaii/vibegopher/internal/database"
 	"github.com/dakaii/vibegopher/internal/envvar"
 	"github.com/dakaii/vibegopher/internal/repository"
 )
 
 func main() {
+	if err := envvar.ValidateRuntimeConfig(); err != nil {
+		log.Fatalf("config: %v", err)
+	}
+
 	db := database.GetDatabase()
 	repos := repository.InitRepositories(db)
 	controllers := controller.InitControllers(repos)
@@ -27,8 +31,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if envvar.BotWorkerEnabled() {
-		worker := bot.NewWorker(repos.BotJobRepo, repos.PostRepo, repos.CommentRepo)
+	if envvar.CriticWorkerEnabled() {
+		worker := critic.NewWorker(repos.BotJobRepo, repos.PostRepo, repos.CommentRepo)
 		go worker.Run(ctx)
 	}
 
@@ -49,5 +53,7 @@ func main() {
 	<-ctx.Done()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = server.Shutdown(shutdownCtx)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("shutdown: %v", err)
+	}
 }

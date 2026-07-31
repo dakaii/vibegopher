@@ -1,10 +1,22 @@
 .vscode
+.cursor
 build
 testing.test
+*.test
+*.out
+coverage.out
+
+# Dependencies & build output
 frontend/node_modules
 frontend/dist
 frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Local secrets — never commit real values
 .env
+.env.*
+!.env.example
 
 # Pulumi
 infra/Pulumi.*.yaml
@@ -13,3 +25,8 @@ infra/Pulumi.*.yaml
 infra/vendor/
 *.pulumi/
 .pulumi/
+
+# OS / editor noise
+.DS_Store
+*~
+*.log

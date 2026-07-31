@@ -1,4 +1,4 @@
-package bot
+package critic
 
 import (
 	"bytes"

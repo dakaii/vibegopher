@@ -36,7 +36,7 @@ Copy stack outputs into GitHub:
 
 - `workloadIdentityProvider` → repo variable `GCP_WORKLOAD_IDENTITY_PROVIDER`
 - `deployServiceAccount` → repo variable `GCP_DEPLOY_SERVICE_ACCOUNT`
-- set `GCP_PROJECT_ID`, `GCP_REGION`, `PULUMI_STACK`
+- set `GCP_PROJECT_ID`, `GCP_REGION`, `PULUMI_STACK`, `CORS_ORIGIN`
 - set secrets listed in [SECRETS.md](./SECRETS.md) including `PULUMI_ACCESS_TOKEN`
 
 Sync runtime secret values:

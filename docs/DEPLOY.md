@@ -23,6 +23,8 @@ pulumi config set gcp:project YOUR_PROJECT_ID
 pulumi config set vibegopher:githubOwner YOUR_GH_USER_OR_ORG
 pulumi config set vibegopher:githubRepo vibegopher
 pulumi config set vibegopher:enableCloudRun false
+# When you later enable Cloud Run, also set:
+# pulumi config set vibegopher:corsOrigin https://your-frontend-origin
 pulumi up
 ```
 
@@ -30,7 +32,7 @@ Copy stack outputs into GitHub **variables**:
 
 - `GCP_WORKLOAD_IDENTITY_PROVIDER`
 - `GCP_DEPLOY_SERVICE_ACCOUNT`
-- also set `GCP_PROJECT_ID`, `GCP_REGION`, `PULUMI_STACK`
+- also set `GCP_PROJECT_ID`, `GCP_REGION`, `PULUMI_STACK`, `CORS_ORIGIN`, `CORS_ORIGIN`
 
 ## 4. GitHub secrets
 
@@ -60,7 +62,8 @@ npm run dev   # local
 npm run build # static host later (Firebase / GCS+CDN)
 ```
 
-## 7. Bot worker
+## 7. Critic worker
 
-Cloud Run sets `BOT_WORKER_ENABLED=true` and `minScale=1` so `@vibe_critic` polls `bot_jobs`.  
-Standalone: `go run ./cmd/bot` with the same DB + `GEMINI_API_KEY`.
+Cloud Run sets `APP_ENV=production`, `CRITIC_WORKER_ENABLED=true`, and `minScale=1` so `@vibe_critic` polls `bot_jobs`.  
+Set repository variable `CORS_ORIGIN` to your SPA origin before deploy (required).  
+Standalone worker: `go run ./cmd/bot` with the same DB + `GEMINI_API_KEY`.
