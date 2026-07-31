@@ -40,7 +40,7 @@ func (h *Handlers) GoogleAuth(w http.ResponseWriter, r *http.Request) {
 
 	authToken, err := h.controllers.UserController.LoginWithGoogle(r.Context(), req.IDToken)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusUnauthorized)
+		h.writeErr(w, err)
 		return
 	}
 	h.writeJSON(w, authToken, http.StatusOK)
@@ -67,7 +67,7 @@ func (h *Handlers) Signup(w http.ResponseWriter, r *http.Request) {
 
 	authToken, err := h.controllers.UserController.Signup(user)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusBadRequest)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 
 	authToken, err := h.controllers.UserController.Login(user)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusUnauthorized)
+		h.writeErr(w, err)
 		return
 	}
 

@@ -15,15 +15,16 @@ var ErrUnauthorized = errors.New("unauthorized")
 
 const tokenTTL = 24 * time.Hour
 
-func GenerateJWT(user domain.User) domain.AuthToken {
+func GenerateJWT(user domain.User) (domain.AuthToken, error) {
 	secret := envvar.AuthSecret()
-	expiresAt := time.Now().Add(tokenTTL)
+	now := time.Now()
+	expiresAt := now.Add(tokenTTL)
 
 	claims := &domain.AuthTokenClaim{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			Subject:   user.ID.String(),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(now),
 		},
 		UserID:   user.ID.String(),
 		Username: user.Username,
@@ -32,13 +33,13 @@ func GenerateJWT(user domain.User) domain.AuthToken {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
-		fmt.Println(err)
+		return domain.AuthToken{}, fmt.Errorf("sign jwt: %w", err)
 	}
 	return domain.AuthToken{
 		Token:     tokenString,
 		TokenType: "Bearer",
-		ExpiresIn: expiresAt.Unix(),
-	}
+		ExpiresIn: int64(tokenTTL.Seconds()),
+	}, nil
 }
 
 func VerifyJWT(tknStr string) (domain.User, error) {

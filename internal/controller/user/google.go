@@ -24,5 +24,5 @@ func (c *Controller) LoginWithGoogle(ctx context.Context, idToken string) (domai
 		return domain.AuthToken{}, err
 	}
 
-	return auth.GenerateJWT(*user), nil
+	return auth.GenerateJWT(*user)
 }

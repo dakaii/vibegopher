@@ -24,7 +24,7 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request, user domai
 
 	createdPost, err := h.controllers.PostController.CreatePost(post)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusBadRequest)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -36,7 +36,7 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request, user domai
 func (h *Handlers) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 	posts, err := h.controllers.PostController.GetAllPosts()
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -56,7 +56,7 @@ func (h *Handlers) GetPostByID(w http.ResponseWriter, r *http.Request) {
 
 	post, err := h.controllers.PostController.GetPostByID(id)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusNotFound)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -76,7 +76,7 @@ func (h *Handlers) GetPostsByUserID(w http.ResponseWriter, r *http.Request) {
 
 	posts, err := h.controllers.PostController.GetPostsByUserID(userID)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -118,7 +118,7 @@ func (h *Handlers) UpdatePost(w http.ResponseWriter, r *http.Request, user domai
 
 	updatedPost, err := h.controllers.PostController.UpdatePost(id, updates)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusBadRequest)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (h *Handlers) DeletePost(w http.ResponseWriter, r *http.Request, user domai
 
 	err = h.controllers.PostController.DeletePost(id)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 

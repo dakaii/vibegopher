@@ -28,7 +28,7 @@ func InitControllers(repositories *repository.Repositories) *Controllers {
 	}
 }
 
-// EnqueueBotJob queues async AI work. Failures are logged and do not fail the user request.
+// EnqueueBotJob queues async critic work. Failures are logged and do not fail the user request.
 func (c *Controllers) EnqueueBotJob(kind string, targetID uuid.UUID, authorID uuid.UUID) {
 	if c.BotJobs == nil {
 		return
@@ -37,6 +37,6 @@ func (c *Controllers) EnqueueBotJob(kind string, targetID uuid.UUID, authorID uu
 		return
 	}
 	if _, err := c.BotJobs.Enqueue(kind, targetID); err != nil {
-		log.Printf("enqueue bot job %s/%s: %v", kind, targetID, err)
+		log.Printf("enqueue critic job %s/%s: %v", kind, targetID, err)
 	}
 }

@@ -1,6 +1,6 @@
 # @vibe_critic persona & safety brief
 
-Source of truth for the model prompt: [`internal/bot/persona.go`](../internal/bot/persona.go).
+Source of truth for the model prompt: [`internal/critic/persona.go`](../internal/critic/persona.go).
 
 ## One-liner
 
@@ -27,6 +27,6 @@ The bot’s only action is `CreateComment` as `@vibe_critic`. It must never impl
 
 ## Tuning knobs later
 
-- Temperature / max tokens: `internal/bot/gemini.go`
+- Temperature / max tokens: `internal/critic/gemini.go`
 - Skip replies on certain topics: worker filters (code), not “shadow moderation” language in-prompt
 - User mute of the bot: product feature (recommended), separate from persona text

@@ -2,10 +2,10 @@ package api
 
 import (
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/dakaii/vibegopher/internal/controller"
+	"github.com/dakaii/vibegopher/internal/envvar"
 	"github.com/gorilla/mux"
 )
 
@@ -15,10 +15,11 @@ func SetupRouter(controllers *controller.Controllers) *mux.Router {
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api").Subrouter()
 
-	// Auth — Google is primary for the SPA; password routes kept for legacy/tests.
 	api.HandleFunc("/auth/google", handlers.GoogleAuth).Methods("POST")
-	api.HandleFunc("/signup", handlers.Signup).Methods("POST")
-	api.HandleFunc("/login", handlers.Login).Methods("POST")
+	if envvar.PasswordAuthEnabled() {
+		api.HandleFunc("/signup", handlers.Signup).Methods("POST")
+		api.HandleFunc("/login", handlers.Login).Methods("POST")
+	}
 	api.HandleFunc("/me", handlers.withAuth(handlers.Me)).Methods("GET")
 
 	api.HandleFunc("/posts", handlers.withAuth(handlers.CreatePost)).Methods("POST")
@@ -46,15 +47,15 @@ func SetupRouter(controllers *controller.Controllers) *mux.Router {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := os.Getenv("CORS_ORIGIN")
-		if origin == "" {
-			origin = "*"
+		originCfg := envvar.CORSOrigin()
+		if originCfg == "" {
+			originCfg = "*"
 		}
 		reqOrigin := r.Header.Get("Origin")
-		if origin == "*" {
+		if originCfg == "*" {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		} else if reqOrigin != "" {
-			for _, allowed := range strings.Split(origin, ",") {
+			for _, allowed := range strings.Split(originCfg, ",") {
 				if strings.TrimSpace(allowed) == reqOrigin {
 					w.Header().Set("Access-Control-Allow-Origin", reqOrigin)
 					w.Header().Set("Vary", "Origin")

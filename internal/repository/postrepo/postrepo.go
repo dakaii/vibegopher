@@ -10,116 +10,62 @@ import (
 	"gorm.io/gorm"
 )
 
-// PostRepo handles post database operations
 type PostRepo struct {
 	db *gorm.DB
 }
 
-// NewPostRepo creates a new post repository
 func NewPostRepo(db *gorm.DB) *PostRepo {
-	return &PostRepo{
-		db: db,
-	}
+	return &PostRepo{db: db}
 }
 
-// CreatePost creates a new post in the database
 func (repo *PostRepo) CreatePost(post domain.Post) (*domain.Post, error) {
 	dbPost := PostEntity{
 		Content: post.Content,
 		UserID:  post.UserID,
 	}
-
-	result := repo.db.Create(&dbPost)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := repo.db.Create(&dbPost).Error; err != nil {
+		return nil, err
 	}
-
 	return repo.GetPostByID(dbPost.ID)
 }
 
-// GetPostByID fetches a post by ID with user information
 func (repo *PostRepo) GetPostByID(id uuid.UUID) (*domain.Post, error) {
 	var post PostEntity
-	result := repo.db.Preload("User").Where("id = ?", id).First(&post)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	err := repo.db.Preload("User").Where("id = ?", id).First(&post).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("no post found with ID: %s", id)
 		}
-		return nil, result.Error
+		return nil, err
 	}
-
-	return &domain.Post{
-		ID:        post.ID,
-		CreatedAt: post.CreatedAt,
-		UpdatedAt: post.UpdatedAt,
-		Content:   post.Content,
-		UserID:    post.UserID,
-		User: domain.User{
-			ID:        post.User.ID,
-			Username:  post.User.Username,
-			CreatedAt: post.User.CreatedAt,
-			UpdatedAt: post.User.UpdatedAt,
-		},
-	}, nil
+	out := toDomain(post)
+	return &out, nil
 }
 
-// GetAllPosts fetches all posts with user information, ordered by creation date
 func (repo *PostRepo) GetAllPosts() ([]domain.Post, error) {
 	var posts []PostEntity
-	result := repo.db.Preload("User").Order("created_at DESC").Find(&posts)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := repo.db.Preload("User").Order("created_at DESC").Limit(100).Find(&posts).Error; err != nil {
+		return nil, err
 	}
-
-	domainPosts := make([]domain.Post, len(posts))
+	out := make([]domain.Post, len(posts))
 	for i, post := range posts {
-		domainPosts[i] = domain.Post{
-			ID:        post.ID,
-			CreatedAt: post.CreatedAt,
-			UpdatedAt: post.UpdatedAt,
-			Content:   post.Content,
-			UserID:    post.UserID,
-			User: domain.User{
-				ID:        post.User.ID,
-				Username:  post.User.Username,
-				CreatedAt: post.User.CreatedAt,
-				UpdatedAt: post.User.UpdatedAt,
-			},
-		}
+		out[i] = toDomain(post)
 	}
-
-	return domainPosts, nil
+	return out, nil
 }
 
-// GetPostsByUserID fetches all posts by a specific user
 func (repo *PostRepo) GetPostsByUserID(userID uuid.UUID) ([]domain.Post, error) {
 	var posts []PostEntity
-	result := repo.db.Preload("User").Where("user_id = ?", userID).Order("created_at DESC").Find(&posts)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := repo.db.Preload("User").Where("user_id = ?", userID).Order("created_at DESC").Limit(100).Find(&posts).Error; err != nil {
+		return nil, err
 	}
-
-	domainPosts := make([]domain.Post, len(posts))
+	out := make([]domain.Post, len(posts))
 	for i, post := range posts {
-		domainPosts[i] = domain.Post{
-			ID:        post.ID,
-			CreatedAt: post.CreatedAt,
-			UpdatedAt: post.UpdatedAt,
-			Content:   post.Content,
-			UserID:    post.UserID,
-			User: domain.User{
-				ID:        post.User.ID,
-				Username:  post.User.Username,
-				CreatedAt: post.User.CreatedAt,
-				UpdatedAt: post.User.UpdatedAt,
-			},
-		}
+		out[i] = toDomain(post)
 	}
-
-	return domainPosts, nil
+	return out, nil
 }
 
-// UpdatePost updates an existing post
 func (repo *PostRepo) UpdatePost(id uuid.UUID, updates domain.Post) (*domain.Post, error) {
 	result := repo.db.Model(&PostEntity{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"content":    updates.Content,
@@ -131,11 +77,9 @@ func (repo *PostRepo) UpdatePost(id uuid.UUID, updates domain.Post) (*domain.Pos
 	if result.RowsAffected == 0 {
 		return nil, fmt.Errorf("no post found with ID: %s", id)
 	}
-
 	return repo.GetPostByID(id)
 }
 
-// DeletePost deletes a post by ID
 func (repo *PostRepo) DeletePost(id uuid.UUID) error {
 	result := repo.db.Delete(&PostEntity{}, id)
 	if result.Error != nil {
@@ -147,36 +91,46 @@ func (repo *PostRepo) DeletePost(id uuid.UUID) error {
 	return nil
 }
 
-// PostEntity represents the post entity in the database
 type PostEntity struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	Content   string         `gorm:"type:text;not null"`
-	UserID    uuid.UUID      `gorm:"type:uuid;not null"`
-	User      UserEntity     `gorm:"foreignKey:UserID;references:ID"`
+	Content   string     `gorm:"type:text;not null"`
+	UserID    uuid.UUID  `gorm:"type:uuid;not null"`
+	User      UserEntity `gorm:"foreignKey:UserID;references:ID"`
 }
 
-// UserEntity embedded for preloading
 type UserEntity struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Username  string `gorm:"unique;index;not null"`
+	IsBot     bool   `gorm:"column:is_bot;not null;default:false"`
 }
 
-// BeforeCreate sets a UUID for the post
-func (post *PostEntity) BeforeCreate(tx *gorm.DB) (err error) {
-	post.ID = uuid.New()
-	return
+func (post *PostEntity) BeforeCreate(tx *gorm.DB) error {
+	if post.ID == uuid.Nil {
+		post.ID = uuid.New()
+	}
+	return nil
 }
 
-// TableName overrides the table name
-func (post *PostEntity) TableName() string {
-	return "posts"
-}
+func (PostEntity) TableName() string { return "posts" }
+func (UserEntity) TableName() string { return "users" }
 
-// TableName for UserEntity when used in post context
-func (user *UserEntity) TableName() string {
-	return "users"
+func toDomain(post PostEntity) domain.Post {
+	return domain.Post{
+		ID:        post.ID,
+		CreatedAt: post.CreatedAt,
+		UpdatedAt: post.UpdatedAt,
+		Content:   post.Content,
+		UserID:    post.UserID,
+		User: domain.User{
+			ID:        post.User.ID,
+			Username:  post.User.Username,
+			CreatedAt: post.User.CreatedAt,
+			UpdatedAt: post.User.UpdatedAt,
+			IsBot:     post.User.IsBot,
+		},
+	}
 }

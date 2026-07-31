@@ -15,7 +15,22 @@ func Port() string {
 	return port
 }
 
-// GetSecret returns the jwt secret.
+// AppEnv returns APP_ENV (development|test|production). Empty means development.
+func AppEnv() string {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
+	if v == "" {
+		return "development"
+	}
+	return v
+}
+
+func IsProduction() bool {
+	e := AppEnv()
+	return e == "production" || e == "prod"
+}
+
+// AuthSecret returns the JWT signing secret.
+// Prefer ValidateRuntimeConfig() at process start — do not rely on the weak default in production.
 func AuthSecret() string {
 	secret, exists := os.LookupEnv("AUTH_SECRET")
 	if !exists {
@@ -24,13 +39,10 @@ func AuthSecret() string {
 	return secret
 }
 
-// DatabaseURL returns a full Postgres URL when set (Neon / Cloud Run Secret Manager).
-// When empty, callers should fall back to discrete POSTGRES_* variables via PostgresDSN.
 func DatabaseURL() string {
 	return os.Getenv("DATABASE_URL")
 }
 
-// PostgresDSN returns DATABASE_URL if set, otherwise a lib/pq keyword DSN from POSTGRES_*.
 func PostgresDSN() string {
 	if u := DatabaseURL(); u != "" {
 		return u
@@ -41,20 +53,39 @@ func PostgresDSN() string {
 	)
 }
 
-// GoogleOAuthClientID is the OAuth client ID used as the audience for Google ID tokens.
 func GoogleOAuthClientID() string {
 	return os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
 }
 
-// GeminiAPIKey powers the AI critic worker.
 func GeminiAPIKey() string {
 	return os.Getenv("GEMINI_API_KEY")
 }
 
-// BotWorkerEnabled starts the in-process bot poller with the API server.
-func BotWorkerEnabled() bool {
-	v := strings.ToLower(strings.TrimSpace(os.Getenv("BOT_WORKER_ENABLED")))
-	return v == "1" || v == "true" || v == "yes"
+func envTruthy(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+// CriticWorkerEnabled starts the in-process critic poller.
+// Prefers CRITIC_WORKER_ENABLED when set to a non-empty value; falls back to BOT_WORKER_ENABLED.
+func CriticWorkerEnabled() bool {
+	if v, ok := os.LookupEnv("CRITIC_WORKER_ENABLED"); ok && strings.TrimSpace(v) != "" {
+		return envTruthy(v)
+	}
+	return envTruthy(os.Getenv("BOT_WORKER_ENABLED"))
+}
+
+// PasswordAuthEnabled exposes legacy /api/signup and /api/login (tests/local only).
+func PasswordAuthEnabled() bool {
+	return envTruthy(os.Getenv("ENABLE_PASSWORD_AUTH"))
+}
+
+func CORSOrigin() string {
+	return strings.TrimSpace(os.Getenv("CORS_ORIGIN"))
 }
 
 func DBHost() string {
@@ -113,6 +144,31 @@ func HashCost() int {
 	if err != nil {
 		return 8
 	}
-
 	return res
+}
+
+// ValidateRuntimeConfig fails fast on unsafe production settings.
+func ValidateRuntimeConfig() error {
+	secret := AuthSecret()
+	if IsProduction() {
+		if secret == "" || secret == "secret_key" || len(secret) < 16 {
+			return fmt.Errorf("AUTH_SECRET must be set to a strong value in production (min 16 chars)")
+		}
+		if CORSOrigin() == "" || CORSOrigin() == "*" {
+			return fmt.Errorf("CORS_ORIGIN must be set to explicit frontend origin(s) in production")
+		}
+		if GoogleOAuthClientID() == "" {
+			return fmt.Errorf("GOOGLE_OAUTH_CLIENT_ID is required in production")
+		}
+	}
+	if CriticWorkerEnabled() && GeminiAPIKey() == "" {
+		if IsProduction() {
+			return fmt.Errorf("GEMINI_API_KEY is required when the critic worker is enabled in production")
+		}
+		fmt.Println("warning: critic worker enabled but GEMINI_API_KEY is empty; critic jobs will fail")
+	}
+	if PasswordAuthEnabled() && IsProduction() {
+		return fmt.Errorf("ENABLE_PASSWORD_AUTH must not be enabled in production")
+	}
+	return nil
 }

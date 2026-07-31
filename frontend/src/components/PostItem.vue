@@ -69,7 +69,7 @@ onMounted(() => {
       <div v-for="c in comments" :key="c.id" class="comment">
         <strong
           class="post-author"
-          :class="{ bot: c.user?.is_bot || c.user?.username === 'vibe_critic' }"
+          :class="{ bot: c.user?.is_bot }"
         >
           @{{ c.user?.username || 'unknown' }}
         </strong>

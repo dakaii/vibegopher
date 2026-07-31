@@ -40,7 +40,8 @@ func (suite *MeTestSuite) TearDownTest() {
 func (suite *MeTestSuite) TestGetMe() {
 	// Create a user and get auth token
 	user := factory.CreateUser()
-	token := auth.GenerateJWT(user)
+	token, err := auth.GenerateJWT(user)
+	suite.NoError(err)
 
 	// Make authenticated request to /me endpoint
 	req, err := http.NewRequest("GET", "/api/me", nil)
