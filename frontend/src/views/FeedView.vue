@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../api'
+import { api, postCursor } from '../api'
 import { clearToken } from '../auth'
 import PostItem from '../components/PostItem.vue'
+import { isCriticMuted, setCriticMuted } from '../preferences'
 import type { Post, User } from '../types'
+
+const PAGE_SIZE = 20
 
 const router = useRouter()
 const me = ref<User | null>(null)
@@ -13,14 +16,19 @@ const draft = ref('')
 const error = ref('')
 const loading = ref(true)
 const posting = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+const muteCritic = ref(isCriticMuted())
+const refreshTick = ref(0)
 let pollTimer: ReturnType<typeof setInterval> | undefined
 
-async function load() {
+async function loadInitial() {
   error.value = ''
   try {
-    const [user, feed] = await Promise.all([api.me(), api.posts()])
+    const [user, feed] = await Promise.all([api.me(), api.posts({ limit: PAGE_SIZE })])
     me.value = user
     posts.value = feed || []
+    hasMore.value = (feed || []).length >= PAGE_SIZE
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to load feed'
     error.value = message
@@ -33,6 +41,22 @@ async function load() {
   }
 }
 
+async function loadMore() {
+  if (loadingMore.value || !hasMore.value || !posts.value.length) return
+  loadingMore.value = true
+  error.value = ''
+  try {
+    const last = posts.value[posts.value.length - 1]
+    const page = (await api.posts({ limit: PAGE_SIZE, before: postCursor(last) })) || []
+    posts.value = [...posts.value, ...page]
+    hasMore.value = page.length >= PAGE_SIZE
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load more'
+  } finally {
+    loadingMore.value = false
+  }
+}
+
 async function submitPost() {
   const content = draft.value.trim()
   if (!content || posting.value) return
@@ -41,7 +65,8 @@ async function submitPost() {
   try {
     await api.createPost(content)
     draft.value = ''
-    await load()
+    loading.value = true
+    await loadInitial()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to post'
   } finally {
@@ -54,11 +79,16 @@ async function signOut() {
   await router.push('/login')
 }
 
+function toggleMuteCritic() {
+  muteCritic.value = !muteCritic.value
+  setCriticMuted(muteCritic.value)
+}
+
 onMounted(async () => {
-  await load()
-  // Poll so vibe_critic replies appear without a manual refresh.
+  await loadInitial()
+  // Refresh comments so @vibe_critic replies appear without a full remount.
   pollTimer = setInterval(() => {
-    void load()
+    refreshTick.value += 1
   }, 8000)
 })
 
@@ -76,6 +106,9 @@ onUnmounted(() => {
       </div>
       <div class="row" style="gap: 0.75rem">
         <span v-if="me" class="muted">@{{ me.username }}</span>
+        <button class="btn btn-ghost" type="button" @click="toggleMuteCritic">
+          {{ muteCritic ? 'Show critic' : 'Mute critic' }}
+        </button>
         <button class="btn btn-ghost" type="button" @click="signOut">Sign out</button>
       </div>
     </header>
@@ -98,8 +131,20 @@ onUnmounted(() => {
     <p v-if="loading" class="muted">Loading feed…</p>
 
     <section v-else class="panel" style="margin-top: 1rem; padding-top: 0.35rem">
-      <PostItem v-for="post in posts" :key="post.id" :post="post" @changed="load" />
+      <PostItem
+        v-for="post in posts"
+        :key="post.id"
+        :post="post"
+        :refresh-tick="refreshTick"
+        :mute-critic="muteCritic"
+        @changed="loadInitial"
+      />
       <p v-if="!posts.length" class="muted" style="padding: 1rem 0">No posts yet — go first.</p>
+      <div v-if="posts.length && hasMore" class="row" style="justify-content: center; padding: 1rem 0">
+        <button class="btn btn-ghost" type="button" :disabled="loadingMore" @click="loadMore">
+          {{ loadingMore ? 'Loading…' : 'Load more' }}
+        </button>
+      </div>
     </section>
   </div>
 </template>

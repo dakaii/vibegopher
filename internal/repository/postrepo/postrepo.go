@@ -43,8 +43,22 @@ func (repo *PostRepo) GetPostByID(id uuid.UUID) (*domain.Post, error) {
 }
 
 func (repo *PostRepo) GetAllPosts() ([]domain.Post, error) {
+	return repo.ListPosts(100, time.Time{}, uuid.Nil)
+}
+
+// ListPosts returns posts newest-first. When beforeCreatedAt/beforeID are set,
+// returns posts strictly older than that cursor (created_at, id).
+func (repo *PostRepo) ListPosts(limit int, beforeCreatedAt time.Time, beforeID uuid.UUID) ([]domain.Post, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	q := repo.db.Preload("User").Order("created_at DESC, id DESC").Limit(limit)
+	if !beforeCreatedAt.IsZero() && beforeID != uuid.Nil {
+		at := beforeCreatedAt.UTC()
+		q = q.Where("created_at < ? OR (created_at = ? AND id < ?)", at, at, beforeID)
+	}
 	var posts []PostEntity
-	if err := repo.db.Preload("User").Order("created_at DESC").Limit(100).Find(&posts).Error; err != nil {
+	if err := q.Find(&posts).Error; err != nil {
 		return nil, err
 	}
 	out := make([]domain.Post, len(posts))

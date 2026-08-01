@@ -2,18 +2,26 @@
 
 VibeGopher is intentionally small: a public Twitter knockoff with an AI critic. Gaps below are prioritized for the demo, not for a full social network.
 
+## Done recently
+
+| Feature | Notes |
+|---------|-------|
+| Feed cursor pagination (`limit` + `before`) | Comments still hard-capped at 200 |
+| Mute `@vibe_critic` (client `localStorage`) | Hide-only; jobs still enqueue |
+| Per-IP rate limits on auth + writes | In-process; not shared across replicas |
+| `X-Request-ID` + request access logs | Structured fields in `log.Printf` |
+| Critic comment refresh poll | Reloads comments without remounting posts |
+
 ## Worth doing next (demo quality)
 
 | Feature | Why |
 |---------|-----|
-| Cursor-based pagination for feed/comments | Hard `Limit(100/200)` will hide history |
-| Mute / hide `@vibe_critic` per user | Persona docs already call this out |
-| Rate limiting on auth + write endpoints | Abuse protection for a public deploy |
-| Structured logging + request IDs | Debug Cloud Run / worker failures |
+| Comment pagination | Still `Limit(200)` |
+| Server-side mute / skip enqueue | Save Gemini cost when muted |
 | Separate Cloud Run service for the critic worker | Avoid coupling LLM latency to API process |
-| Frontend refresh of critic replies via SSE/WebSocket | Polling works; push is nicer |
+| SSE/WebSocket for critic replies | Better than 8s polling |
 | Basic profile page (`/u/:username`) | Users exist but have no surface |
-| Empty / error states polish in the SPA | First-run UX |
+| Shared/redis rate limits | Needed if Cloud Run scales out |
 
 ## Nice-to-have social features
 

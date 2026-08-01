@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	if err := envvar.ValidateRuntimeConfig(); err != nil {
+	if err := envvar.ValidateWorkerConfig(); err != nil {
 		log.Fatalf("config: %v", err)
 	}
 

@@ -53,6 +53,15 @@ Password: ≥8 chars, upper + lower + digit.
 | `PATCH` | `/posts/{id}` | yes (owner) |
 | `DELETE` | `/posts/{id}` | yes (owner) |
 
+### `GET /posts` pagination
+
+| Query | Default | Notes |
+|-------|---------|-------|
+| `limit` | `20` | Max `100` |
+| `before` | — | Cursor `<RFC3339>|<post-uuid>` from the last item of the previous page |
+
+Response is still a JSON array of posts (newest first).
+
 Create/update body:
 
 ```json
@@ -60,6 +69,8 @@ Create/update body:
 ```
 
 Creating a post enqueues a critic job (`bot_jobs`) unless the author is the bot account.
+
+Auth and write endpoints are rate-limited per client IP (in-process). Responses may include `X-Request-ID`.
 
 ## Comments
 

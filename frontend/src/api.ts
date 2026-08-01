@@ -41,6 +41,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return data as T
 }
 
+export function postCursor(post: Post): string {
+  return `${post.created_at}|${post.id}`
+}
+
 export const api = {
   googleAuth: (idToken: string) =>
     request<AuthToken>('/api/auth/google', {
@@ -48,7 +52,13 @@ export const api = {
       body: JSON.stringify({ id_token: idToken }),
     }),
   me: () => request<User>('/api/me'),
-  posts: () => request<Post[]>('/api/posts'),
+  posts: (opts?: { limit?: number; before?: string }) => {
+    const params = new URLSearchParams()
+    if (opts?.limit) params.set('limit', String(opts.limit))
+    if (opts?.before) params.set('before', opts.before)
+    const q = params.toString()
+    return request<Post[]>(`/api/posts${q ? `?${q}` : ''}`)
+  },
   createPost: (content: string) =>
     request<Post>('/api/posts', {
       method: 'POST',

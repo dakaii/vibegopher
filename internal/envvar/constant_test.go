@@ -46,3 +46,15 @@ func TestValidateRuntimeConfigOKInProd(t *testing.T) {
 		t.Fatalf("unexpected: %v", err)
 	}
 }
+
+func TestValidateWorkerConfigSkipsAPIOnlySettings(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("AUTH_SECRET", "")
+	t.Setenv("CORS_ORIGIN", "")
+	t.Setenv("GOOGLE_OAUTH_CLIENT_ID", "")
+	t.Setenv("GEMINI_API_KEY", "test-key")
+
+	if err := ValidateWorkerConfig(); err != nil {
+		t.Fatalf("worker should only require Gemini: %v", err)
+	}
+}

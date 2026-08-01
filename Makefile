@@ -12,6 +12,8 @@ migrate-status:
 migrate-down:
 	docker compose run --rm migrator down
 
+# Prefer `docker compose` (v2 plugin). Legacy `docker-compose` is not used in CI.
+
 # Usage: make create-migration NAME=add_google_sub
 create-migration:
 	@test -n "$(NAME)" || (echo 'Usage: make create-migration NAME=add_something'; exit 1)
@@ -39,8 +41,9 @@ down:
 	docker compose down --volumes
 
 test:
+	go test ./internal/... -count=1
 	docker compose -f docker-compose.test.yml run --rm test
-	docker compose -f docker-compose.test.yml rm -fsv
+	docker compose -f docker-compose.test.yml down --volumes
 
 clear-test:
 	docker volume remove vibegopher_postgres_test_data

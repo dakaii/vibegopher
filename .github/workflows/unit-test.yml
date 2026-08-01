@@ -7,22 +7,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Check out code
-      uses: actions/checkout@v2
+      - name: Check out code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.24
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: go.sum
 
-    - name: vet
-      run: |
-        go vet ./...
+      - name: Vet
+        run: go vet ./...
 
-    - name: Run the test
-      run: |
-        docker-compose -f docker-compose.test.yml run --rm test
+      - name: Unit tests (no DB)
+        run: go test ./internal/... -count=1
 
-    - name: Clean up
-      run: |
-        docker-compose -f docker-compose.test.yml down --volumes
+      - name: Integration tests
+        run: docker compose -f docker-compose.test.yml run --rm test
+
+      - name: Clean up
+        if: always()
+        run: docker compose -f docker-compose.test.yml down --volumes
