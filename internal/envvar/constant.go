@@ -147,28 +147,53 @@ func HashCost() int {
 	return res
 }
 
-// ValidateRuntimeConfig fails fast on unsafe production settings.
+// ValidateRuntimeConfig fails fast on unsafe API-server production settings.
 func ValidateRuntimeConfig() error {
-	secret := AuthSecret()
+	if err := validateSharedSecrets(); err != nil {
+		return err
+	}
 	if IsProduction() {
-		if secret == "" || secret == "secret_key" || len(secret) < 16 {
-			return fmt.Errorf("AUTH_SECRET must be set to a strong value in production (min 16 chars)")
-		}
 		if CORSOrigin() == "" || CORSOrigin() == "*" {
 			return fmt.Errorf("CORS_ORIGIN must be set to explicit frontend origin(s) in production")
 		}
 		if GoogleOAuthClientID() == "" {
 			return fmt.Errorf("GOOGLE_OAUTH_CLIENT_ID is required in production")
 		}
-	}
-	if CriticWorkerEnabled() && GeminiAPIKey() == "" {
-		if IsProduction() {
-			return fmt.Errorf("GEMINI_API_KEY is required when the critic worker is enabled in production")
+		if PasswordAuthEnabled() {
+			return fmt.Errorf("ENABLE_PASSWORD_AUTH must not be enabled in production")
 		}
-		fmt.Println("warning: critic worker enabled but GEMINI_API_KEY is empty; critic jobs will fail")
 	}
-	if PasswordAuthEnabled() && IsProduction() {
-		return fmt.Errorf("ENABLE_PASSWORD_AUTH must not be enabled in production")
+	if CriticWorkerEnabled() {
+		if err := validateGeminiKey(); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+// ValidateWorkerConfig checks settings for the standalone critic worker (no HTTP/CORS/OAuth).
+func ValidateWorkerConfig() error {
+	return validateGeminiKey()
+}
+
+func validateSharedSecrets() error {
+	if !IsProduction() {
+		return nil
+	}
+	secret := AuthSecret()
+	if secret == "" || secret == "secret_key" || len(secret) < 16 {
+		return fmt.Errorf("AUTH_SECRET must be set to a strong value in production (min 16 chars)")
+	}
+	return nil
+}
+
+func validateGeminiKey() error {
+	if GeminiAPIKey() != "" {
+		return nil
+	}
+	if IsProduction() {
+		return fmt.Errorf("GEMINI_API_KEY is required for the critic worker in production")
+	}
+	fmt.Println("warning: critic worker enabled but GEMINI_API_KEY is empty; critic jobs will fail")
 	return nil
 }

@@ -1,6 +1,8 @@
 package post
 
 import (
+	"time"
+
 	"github.com/dakaii/vibegopher/internal/domain"
 	"github.com/google/uuid"
 )
@@ -16,11 +18,12 @@ func (c *Controller) GetPostByID(id uuid.UUID) (*domain.Post, error) {
 
 // GetAllPosts retrieves all posts
 func (c *Controller) GetAllPosts() ([]domain.Post, error) {
-	posts, err := c.service.GetAllPosts()
-	if err != nil {
-		return nil, err
-	}
-	return posts, nil
+	return c.ListPosts(100, time.Time{}, uuid.Nil)
+}
+
+// ListPosts retrieves a page of posts (newest first) with an optional cursor.
+func (c *Controller) ListPosts(limit int, beforeCreatedAt time.Time, beforeID uuid.UUID) ([]domain.Post, error) {
+	return c.service.ListPosts(limit, beforeCreatedAt, beforeID)
 }
 
 // GetPostsByUserID retrieves all posts by a specific user
