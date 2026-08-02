@@ -62,6 +62,15 @@ func DBPort() string {
 	return port
 }
 
+// DBSSLMode returns the Postgres sslmode. Defaults to disable for local Docker.
+func DBSSLMode() string {
+	sslmode, exists := os.LookupEnv("POSTGRES_SSLMODE")
+	if !exists {
+		sslmode = "disable"
+	}
+	return sslmode
+}
+
 func HashCost() int {
 	costString, _ := os.LookupEnv("HASH_COST")
 	res, err := strconv.Atoi(costString)

@@ -16,10 +16,11 @@ func TruncateAllTables() {
 	dbhost := envvar.DBHost()
 	dbport := envvar.DBPort()
 	user := envvar.DBUser()
+	sslmode := envvar.DBSSLMode()
 
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo",
-		dbhost, user, password, dbname, dbport)
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Tokyo",
+		dbhost, user, password, dbname, dbport, sslmode)
 
 	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {

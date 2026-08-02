@@ -194,8 +194,22 @@ Authorization: Bearer <your-jwt-token>
 
 ### Environment Files
 
-- `config/development.conf` - Development environment variables
+- `config/development.conf` - Default development env (local Docker Postgres)
 - `config/test.conf` - Test environment variables
+- `config/local.conf.example` - Template for machine-local overrides (e.g. Neon)
+- `config/local.conf` - Optional gitignored override; copy from the example when needed
+
+By default, Compose loads `config/development.conf` for the backend. If `config/local.conf` exists, it is loaded after and overrides matching variables (Docker Compose `env_file` with `required: false`). The local Postgres service always uses `development.conf`, so Neon credentials never reconfigure that container.
+
+**Use Neon (or another remote DB) locally:**
+
+```bash
+cp config/local.conf.example config/local.conf
+# Edit config/local.conf with your credentials (POSTGRES_SSLMODE=require for Neon)
+docker compose up backend
+```
+
+Without `config/local.conf`, the backend keeps using Docker Postgres on port `5431`.
 
 ## 🔧 Configuration
 
@@ -209,6 +223,7 @@ POSTGRES_DB=vibegopher_development
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_PORT=5431
+POSTGRES_SSLMODE=disable
 HASH_COST=14
 ```
 

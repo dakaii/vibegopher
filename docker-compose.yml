@@ -8,8 +8,15 @@ services:
       - "8081:8081"
     depends_on:
       - postgresql-dev
+    # development.conf is the default (local Docker Postgres).
+    # Optional config/local.conf overrides when present (e.g. Neon).
+    # postgresql-dev stays on development.conf only so Neon creds never
+    # reconfigure the local Postgres container.
     env_file:
-      - config/development.conf
+      - path: config/development.conf
+        required: true
+      - path: config/local.conf
+        required: false
 
   postgresql-dev:
     container_name: vibegopher-postgresql-dev1

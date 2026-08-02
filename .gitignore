@@ -1,3 +1,9 @@
 .vscode
 build
 testing.test
+
+# Local secrets (Neon / machine-specific). Keep committed *.conf examples only.
+config/local.conf
+.env
+.env.*
+!.env.example
