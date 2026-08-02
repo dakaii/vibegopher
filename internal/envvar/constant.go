@@ -36,8 +36,8 @@ func PostgresDSN() string {
 		return u
 	}
 	return fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Tokyo",
-		DBHost(), DBUser(), DBPassword(), DBName(), DBPort(),
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Tokyo",
+		DBHost(), DBUser(), DBPassword(), DBName(), DBPort(), DBSSLMode(),
 	)
 }
 
@@ -95,6 +95,16 @@ func DBPort() string {
 		port = "5432"
 	}
 	return port
+}
+
+// DBSSLMode returns the Postgres sslmode. Defaults to disable for local Docker.
+// Empty POSTGRES_SSLMODE is treated like unset.
+func DBSSLMode() string {
+	sslmode := strings.TrimSpace(os.Getenv("POSTGRES_SSLMODE"))
+	if sslmode == "" {
+		return "disable"
+	}
+	return sslmode
 }
 
 func HashCost() int {

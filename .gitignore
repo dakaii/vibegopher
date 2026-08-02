@@ -5,6 +5,11 @@ frontend/node_modules
 frontend/dist
 frontend/.env
 .env
+.env.*
+!.env.example
+
+# Local secrets (Neon / machine-specific). Keep committed *.conf examples only.
+config/local.conf
 
 # Pulumi
 infra/Pulumi.*.yaml

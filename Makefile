@@ -1,18 +1,24 @@
 .PHONY: build up down test migrate migrate-status migrate-down create-migration run-db create-dev-db drop-dev-db
 
+# Local Docker Postgres lives on the Compose profile "local-db".
+# When config/local.conf is present (e.g. Neon), skip that profile so
+# backend/migrator do not start postgresql-dev.
+USE_LOCAL_DB := $(shell test ! -f config/local.conf && echo yes)
+COMPOSE_LOCAL_DB := $(if $(USE_LOCAL_DB),--profile local-db,)
+
 # --- Database migrations (goose) ---
 # Same SQL runs in local Docker, tests, and GitHub Actions deploy (Neon).
 
 migrate:
-	docker compose run --rm migrator up
+	docker compose $(COMPOSE_LOCAL_DB) run --rm migrator up
 
 migrate-status:
-	docker compose run --rm migrator status
+	docker compose $(COMPOSE_LOCAL_DB) run --rm migrator status
 
 migrate-down:
-	docker compose run --rm migrator down
+	docker compose $(COMPOSE_LOCAL_DB) run --rm migrator down
 
-# Usage: make create-migration NAME=add_google_sub
+# Usage: make create-migration NAME=add_something
 create-migration:
 	@test -n "$(NAME)" || (echo 'Usage: make create-migration NAME=add_something'; exit 1)
 	go run github.com/pressly/goose/v3/cmd/goose@v3.24.3 \
@@ -28,15 +34,17 @@ build:
 	docker compose build backend
 
 run-db:
-	docker compose up -d postgresql-dev
+	docker compose --profile local-db up -d postgresql-dev
 
 up:
-	docker compose up -d postgresql-dev
+ifneq ($(USE_LOCAL_DB),)
+	docker compose --profile local-db up -d postgresql-dev
+endif
 	$(MAKE) migrate
-	docker compose up backend && docker compose rm -fsv
+	docker compose $(COMPOSE_LOCAL_DB) up backend && docker compose $(COMPOSE_LOCAL_DB) rm -fsv
 
 down:
-	docker compose down --volumes
+	docker compose --profile local-db down --volumes
 
 test:
 	docker compose -f docker-compose.test.yml run --rm test

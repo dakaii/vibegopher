@@ -6,16 +6,29 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8081:8080"
+    # postgresql-dev is on the local-db profile; required: false so Neon/remote
+    # users can start backend without bringing up local Postgres.
     depends_on:
-      - postgresql-dev
+      postgresql-dev:
+        condition: service_started
+        required: false
+    # development.conf is the default (local Docker Postgres).
+    # Optional config/local.conf overrides when present (e.g. Neon).
+    # postgresql-dev stays on development.conf only so Neon creds never
+    # reconfigure the local Postgres container.
+    # Requires Docker Compose ≥ 2.24 (env_file.path + required: false).
     env_file:
-      - config/development.conf
+      - path: config/development.conf
+        required: true
+      - path: config/local.conf
+        required: false
     environment:
       PORT: "8080"
 
   postgresql-dev:
     container_name: vibegopher-postgresql-dev1
     image: postgres:16
+    profiles: ["local-db"]
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data/
     ports:
@@ -29,13 +42,16 @@ services:
     working_dir: /src
     volumes:
       - .:/src
-    env_file:
-      - config/development.conf
-    environment:
-      POSTGRES_HOST: postgresql-dev
-      POSTGRES_PORT: "5432"
     depends_on:
-      - postgresql-dev
+      postgresql-dev:
+        condition: service_started
+        required: false
+    # Same optional local.conf override as backend (Neon migrations).
+    env_file:
+      - path: config/development.conf
+        required: true
+      - path: config/local.conf
+        required: false
     entrypoint: ["go", "run", "./cmd/migrate"]
 
 volumes:
