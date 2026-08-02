@@ -1,16 +1,21 @@
-FROM golang:slim
+FROM golang:1.24-bookworm AS build
 
 WORKDIR /app
 
-# Copy go mod files first for better caching
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd/server
 
-# Build the application
-RUN go build -o build ./cmd/server/main.go
+FROM gcr.io/distroless/static-debian12:nonroot
 
-# Run the binary program
-CMD ["./build"]
+WORKDIR /
+COPY --from=build /out/server /server
+
+# Cloud Run sets PORT; the app already reads it (default 8081 for local).
+ENV PORT=8080
+EXPOSE 8080
+
+USER nonroot:nonroot
+ENTRYPOINT ["/server"]

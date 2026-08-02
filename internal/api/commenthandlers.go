@@ -29,6 +29,7 @@ func (h *Handlers) CreateComment(w http.ResponseWriter, r *http.Request, user do
 		return
 	}
 
+	h.controllers.EnqueueBotJob(domain.BotJobKindCommentCreated, createdComment.ID, user.ID)
 	h.writeJSON(w, createdComment, http.StatusCreated)
 }
 

@@ -3,6 +3,7 @@ package userrepo
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/dakaii/vibegopher/internal/domain"
@@ -12,19 +13,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserRepo should i rename it?
 type UserRepo struct {
 	db *gorm.DB
 }
 
-// NewUserRepo ..
 func NewUserRepo(db *gorm.DB) *UserRepo {
-	return &UserRepo{
-		db: db,
-	}
+	return &UserRepo{db: db}
 }
 
-// GetExistingUser fetches a user by the username from the db and returns it.
 func (repo *UserRepo) GetExistingUser(username string) (*domain.User, error) {
 	var user UserEntity
 	result := repo.db.Where("username = ? AND deleted_at IS NULL", username).First(&user)
@@ -34,38 +30,109 @@ func (repo *UserRepo) GetExistingUser(username string) (*domain.User, error) {
 		}
 		return nil, result.Error
 	}
-	return &domain.User{
-		ID:        user.ID,
-		Username:  user.Username,
-		Password:  user.Password,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-	}, nil
+	return toDomain(user), nil
 }
 
-// CreateUser creates a new user in the db..
-func (repo *UserRepo) CreateUser(user domain.User) (*domain.User, error) {
-	hashedPass, err := HashPassword(user.Password)
-	if err != nil {
-		return nil, err
+func (repo *UserRepo) GetByGoogleSub(googleSub string) (*domain.User, error) {
+	var user UserEntity
+	result := repo.db.Where("google_sub = ? AND deleted_at IS NULL", googleSub).First(&user)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("no user found with google_sub")
+		}
+		return nil, result.Error
 	}
+	return toDomain(user), nil
+}
+
+func (repo *UserRepo) GetByID(id uuid.UUID) (*domain.User, error) {
+	var user UserEntity
+	result := repo.db.Where("id = ? AND deleted_at IS NULL", id).First(&user)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("no user found with id")
+		}
+		return nil, result.Error
+	}
+	return toDomain(user), nil
+}
+
+func (repo *UserRepo) CreateUser(user domain.User) (*domain.User, error) {
 	dbUser := UserEntity{
-		Username: user.Username,
-		Password: hashedPass,
+		Username:  user.Username,
+		Email:     nullString(user.Email),
+		GoogleSub: nullString(user.GoogleSub),
+		IsBot:     user.IsBot,
+	}
+	if user.Password != "" {
+		hashedPass, err := HashPassword(user.Password)
+		if err != nil {
+			return nil, err
+		}
+		dbUser.Password = &hashedPass
 	}
 
 	result := repo.db.Create(&dbUser)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	fmt.Println("Inserted a user with ID:", dbUser.ID)
-	return &domain.User{
-		ID:        dbUser.ID,
-		Username:  dbUser.Username,
-		Password:  dbUser.Password,
-		CreatedAt: dbUser.CreatedAt,
-		UpdatedAt: dbUser.UpdatedAt,
-	}, nil
+	return toDomain(dbUser), nil
+}
+
+// UpsertGoogleUser finds by google_sub or creates a new Google-backed user.
+func (repo *UserRepo) UpsertGoogleUser(profile domain.GoogleProfile) (*domain.User, error) {
+	if existing, err := repo.GetByGoogleSub(profile.Sub); err == nil {
+		return existing, nil
+	}
+
+	username, err := repo.uniqueUsernameFromProfile(profile)
+	if err != nil {
+		return nil, err
+	}
+
+	return repo.CreateUser(domain.User{
+		Username:  username,
+		Email:     profile.Email,
+		GoogleSub: profile.Sub,
+	})
+}
+
+func (repo *UserRepo) uniqueUsernameFromProfile(profile domain.GoogleProfile) (string, error) {
+	base := sanitizeUsername(profile.GivenName)
+	if base == "" {
+		base = sanitizeUsername(strings.Split(profile.Email, "@")[0])
+	}
+	if base == "" {
+		base = "user"
+	}
+	if len(base) < 3 {
+		base = base + "user"
+	}
+	if len(base) > 40 {
+		base = base[:40]
+	}
+
+	candidate := base
+	for i := 0; i < 20; i++ {
+		_, err := repo.GetExistingUser(candidate)
+		if err != nil {
+			// not found → available
+			return candidate, nil
+		}
+		candidate = fmt.Sprintf("%s%d", base, i+1)
+	}
+	return fmt.Sprintf("user_%s", profile.Sub[len(profile.Sub)-8:]), nil
+}
+
+func sanitizeUsername(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func HashPassword(password string) (string, error) {
@@ -74,25 +141,52 @@ func HashPassword(password string) (string, error) {
 	return string(bytes), err
 }
 
-// use the entity suffix for the entities used for database operations
-// UserEntity struct represents the user entity in the db. entities defined in this package should only be used in the repository package.
 type UserEntity struct {
-	ID        uuid.UUID `gorm:"type:uuid;primary_key;"`
+	ID        uuid.UUID      `gorm:"type:uuid;primary_key;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 	Username  string         `gorm:"unique;index;not null"`
-	Password  string         `gorm:"type:varchar(1000);not null"`
+	Password  *string        `gorm:"type:varchar(1000)"`
+	GoogleSub *string        `gorm:"column:google_sub;uniqueIndex"`
+	Email     *string        `gorm:"type:varchar(255)"`
+	IsBot     bool           `gorm:"not null;default:false"`
 }
 
-// BeforeCreate will set a UUID rather than numeric ID.
 func (user *UserEntity) BeforeCreate(tx *gorm.DB) (err error) {
-	user.ID = uuid.New()
+	if user.ID == uuid.Nil {
+		user.ID = uuid.New()
+	}
 	return
 }
 
-// TableName overrides the table name settings in Gorm to force a specific table name
-// in the database.
-func (user *UserEntity) TableName() string {
+func (UserEntity) TableName() string {
 	return "users"
+}
+
+func toDomain(user UserEntity) *domain.User {
+	out := &domain.User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Username:  user.Username,
+		IsBot:     user.IsBot,
+	}
+	if user.Password != nil {
+		out.Password = *user.Password
+	}
+	if user.GoogleSub != nil {
+		out.GoogleSub = *user.GoogleSub
+	}
+	if user.Email != nil {
+		out.Email = *user.Email
+	}
+	return out
+}
+
+func nullString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:8081"
+      - "8081:8080"
     depends_on:
       - postgresql-dev
     # development.conf is the default (local Docker Postgres).
@@ -17,10 +17,12 @@ services:
         required: true
       - path: config/local.conf
         required: false
+    environment:
+      PORT: "8080"
 
   postgresql-dev:
     container_name: vibegopher-postgresql-dev1
-    image: postgres:latest
+    image: postgres:16
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data/
     ports:
@@ -28,17 +30,20 @@ services:
     env_file:
       - config/development.conf
 
-  atlas-dev:
-    image: arigaio/atlas:latest
+  # One-shot migration runner (golang image; production API image is distroless).
+  migrator:
+    image: golang:1.24-bookworm
+    working_dir: /src
     volumes:
-      - ./atlas.hcl:/work/atlas.hcl
-      - ./schema.sql:/work/schema.sql
-      - ./atlas-migrations:/work/atlas-migrations
-    working_dir: /work
+      - .:/src
+    env_file:
+      - config/development.conf
+    environment:
+      POSTGRES_HOST: postgresql-dev
+      POSTGRES_PORT: "5432"
     depends_on:
       - postgresql-dev
-    environment:
-      - ATLAS_CONFIG_FILE=/work/atlas.hcl
+    entrypoint: ["go", "run", "./cmd/migrate"]
 
 volumes:
   postgres_dev_data:

@@ -1,0 +1,14 @@
+config:
+  gcp:project: your-gcp-project-id
+  gcp:region: us-central1
+  vibegopher:region: us-central1
+  vibegopher:serviceName: vibegopher-api
+  vibegopher:artifactRepoId: vibegopher
+  vibegopher:imageName: api
+  vibegopher:imageTag: latest
+  vibegopher:githubOwner: your-github-username-or-org
+  vibegopher:githubRepo: vibegopher
+  vibegopher:protectSecrets: "true"
+  vibegopher:createPlaceholderSecretVersions: "true"
+  # First bootstrap (no image in Artifact Registry yet): set false, pulumi up, push image, then true.
+  vibegopher:enableCloudRun: "true"

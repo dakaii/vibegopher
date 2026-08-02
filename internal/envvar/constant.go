@@ -1,8 +1,10 @@
 package envvar
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func Port() string {
@@ -20,6 +22,39 @@ func AuthSecret() string {
 		secret = "secret_key"
 	}
 	return secret
+}
+
+// DatabaseURL returns a full Postgres URL when set (Neon / Cloud Run Secret Manager).
+// When empty, callers should fall back to discrete POSTGRES_* variables via PostgresDSN.
+func DatabaseURL() string {
+	return os.Getenv("DATABASE_URL")
+}
+
+// PostgresDSN returns DATABASE_URL if set, otherwise a lib/pq keyword DSN from POSTGRES_*.
+func PostgresDSN() string {
+	if u := DatabaseURL(); u != "" {
+		return u
+	}
+	return fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Tokyo",
+		DBHost(), DBUser(), DBPassword(), DBName(), DBPort(), DBSSLMode(),
+	)
+}
+
+// GoogleOAuthClientID is the OAuth client ID used as the audience for Google ID tokens.
+func GoogleOAuthClientID() string {
+	return os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
+}
+
+// GeminiAPIKey powers the AI critic worker.
+func GeminiAPIKey() string {
+	return os.Getenv("GEMINI_API_KEY")
+}
+
+// BotWorkerEnabled starts the in-process bot poller with the API server.
+func BotWorkerEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("BOT_WORKER_ENABLED")))
+	return v == "1" || v == "true" || v == "yes"
 }
 
 func DBHost() string {
