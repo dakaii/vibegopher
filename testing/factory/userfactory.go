@@ -2,6 +2,7 @@ package factory
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/dakaii/vibegopher/internal/database"
@@ -11,11 +12,17 @@ import (
 	"github.com/jaswdr/faker/v2"
 )
 
+// usernameSeq guarantees unique usernames across the process. faker.New() seeds
+// from time.Now().Unix() (second resolution), so two users built within the same
+// second would otherwise draw the same name and violate the username UNIQUE
+// constraint.
+var usernameSeq atomic.Uint64
+
 func BuildUser() domain.User {
 	fake := faker.New()
 	return domain.User{
 		ID:        uuid.New(),
-		Username:  fake.Internet().User(),
+		Username:  fmt.Sprintf("%s_%d", fake.Internet().User(), usernameSeq.Add(1)),
 		Password:  "Password123",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
