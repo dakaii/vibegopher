@@ -52,8 +52,9 @@ go run ./cmd/server          # API on http://localhost:8081
 ### Lint / test / build
 - Backend: `go vet ./...`; unit tests `go test ./internal/... -count=1` (no DB needed).
 - Backend integration tests live in `testing/` and need a migrated `vibegopher_test` DB with
-  `APP_ENV=test ENABLE_PASSWORD_AUTH=true CORS_ORIGIN=*` and `POSTGRES_HOST=localhost`.
-  - **Known pre-existing flake (not an environment issue):** `testing/factory` seeds faker via
-    `time.Now().Unix()` (second resolution), so any test creating ≥2 users within the same wall-clock second
-    collides on `users.username` (currently ~6 failures, e.g. `TestUpdatePostUnauthorized`). 21 tests pass.
+  `APP_ENV=test ENABLE_PASSWORD_AUTH=true CORS_ORIGIN=*` and `POSTGRES_HOST=localhost`. Run serially
+  (`go test ./testing/... -count=1 -p 1`). All 29 pass.
+  - Note: `testing/factory.BuildUser` appends a process-unique counter to usernames on purpose —
+    `faker.New()` seeds from `time.Now().Unix()` (second resolution), so without the suffix two users built
+    in the same second would collide on the `users.username` UNIQUE constraint.
 - Frontend (from `frontend/`): `npm run lint` (Biome), `npm run typecheck`, `npm run build`.
