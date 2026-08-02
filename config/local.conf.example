@@ -1,6 +1,6 @@
 # Copy to config/local.conf (gitignored) to override development.conf for the
-# backend only. Used for Neon or other remote Postgres. Leave this file absent
-# to keep the default local Docker Postgres path.
+# backend and migrator. Used for Neon or other remote Postgres. Leave this file
+# absent to keep the default local Docker Postgres path (Compose profile local-db).
 PORT=8081
 AUTH_SECRET=replace_me
 POSTGRES_HOST=ep-your-endpoint.aws.neon.tech

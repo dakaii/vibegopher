@@ -26,7 +26,7 @@ A Go REST API for social media functionality with posts, comments, and user mana
 
 ## 📋 Prerequisites
 
-- **Docker** and **Docker Compose**
+- **Docker** and **Docker Compose ≥ 2.24** (needed for optional `env_file` / `depends_on` with `required: false`)
 - **Make** (for running commands)
 
 ## 🚀 Quick Start
@@ -180,8 +180,10 @@ Authorization: Bearer <your-jwt-token>
 ### Development Containers
 
 - **backend**: API container (production Dockerfile)
-- **postgresql-dev**: PostgreSQL 16 for development
+- **postgresql-dev**: PostgreSQL 16 for development (Compose profile `local-db`)
 - **migrator**: one-shot `go run ./cmd/migrate` (golang image)
+
+Requires **Docker Compose ≥ 2.24** for `env_file` / `depends_on` with `required: false`.
 
 ### Environment Files
 
@@ -190,14 +192,26 @@ Authorization: Bearer <your-jwt-token>
 - `config/local.conf.example` - Template for machine-local overrides (e.g. Neon)
 - `config/local.conf` - Optional gitignored override; copy from the example when needed
 
-By default, Compose loads `config/development.conf` for the backend. If `config/local.conf` exists, it is loaded after and overrides matching variables (Docker Compose `env_file` with `required: false`). The local Postgres service always uses `development.conf`, so Neon credentials never reconfigure that container.
+By default, Compose loads `config/development.conf` for **backend** and **migrator**. If `config/local.conf` exists, it is loaded after and overrides matching variables. The local Postgres service always uses `development.conf` only, so Neon credentials never reconfigure that container.
+
+Local Docker Postgres is behind the `local-db` profile. `make run-db` / `make up` / `make migrate` enable that profile automatically when `config/local.conf` is absent. Backend and migrator declare an optional dependency on `postgresql-dev`, so Neon users are not forced to start local Postgres.
+
+**Local Docker Postgres (default):**
+
+```bash
+make run-db
+make migrate
+docker compose --profile local-db up backend
+# or: make up
+```
 
 **Use Neon (or another remote DB) locally:**
 
 ```bash
 cp config/local.conf.example config/local.conf
 # Edit config/local.conf with your credentials (POSTGRES_SSLMODE=require for Neon)
-docker compose up backend
+make migrate                 # uses local.conf; does not start postgresql-dev
+docker compose up backend    # no local-db profile → no local Postgres
 ```
 
 Without `config/local.conf`, the backend keeps using Docker Postgres on port `5431`.
