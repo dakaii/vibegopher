@@ -45,10 +45,11 @@ func deployCloudRun(ctx *pulumi.Context, cfg stackConfig, apis *enabledAPIs, sas
 	}
 
 	service, err := cloudrunv2.NewService(ctx, "api-service", &cloudrunv2.ServiceArgs{
-		Project:  pulumi.String(cfg.Project),
-		Location: pulumi.String(cfg.Region),
-		Name:     pulumi.String(cfg.ServiceName),
-		Ingress:  pulumi.String("INGRESS_TRAFFIC_ALL"),
+		Project:           pulumi.String(cfg.Project),
+		Location:          pulumi.String(cfg.Region),
+		Name:              pulumi.String(cfg.ServiceName),
+		Ingress:           pulumi.String("INGRESS_TRAFFIC_ALL"),
+		DeletionProtection: pulumi.Bool(false),
 		Template: &cloudrunv2.ServiceTemplateArgs{
 			ServiceAccount: sas.Runtime.Email,
 			Containers: cloudrunv2.ServiceTemplateContainerArray{
