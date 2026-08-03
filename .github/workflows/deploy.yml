@@ -132,6 +132,10 @@ jobs:
           pulumi config set vibegopher:region "${GCP_REGION}"
           pulumi config set vibegopher:imageTag "${{ steps.meta.outputs.tag }}"
           pulumi config set vibegopher:corsOrigin "${CORS_ORIGIN}"
+          # Stack config YAML is gitignored — always re-apply WIF binding in CI
+          # or deploy would drop the workload identity pool.
+          pulumi config set vibegopher:githubOwner "${GITHUB_REPOSITORY_OWNER}"
+          pulumi config set vibegopher:githubRepo "${GITHUB_REPOSITORY#*/}"
           pulumi config set vibegopher:protectSecrets true
           pulumi config set vibegopher:enableCloudRun true
           pulumi up --yes

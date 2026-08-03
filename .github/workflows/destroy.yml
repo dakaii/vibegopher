@@ -84,6 +84,8 @@ jobs:
         run: |
           pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
+          pulumi config set vibegopher:githubOwner "${GITHUB_REPOSITORY_OWNER}"
+          pulumi config set vibegopher:githubRepo "${GITHUB_REPOSITORY#*/}"
           pulumi config set vibegopher:protectSecrets true
           # Ensure protect flags are applied before destroy.
           pulumi up --yes --skip-preview
@@ -96,6 +98,8 @@ jobs:
         run: |
           pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
+          pulumi config set vibegopher:githubOwner "${GITHUB_REPOSITORY_OWNER}"
+          pulumi config set vibegopher:githubRepo "${GITHUB_REPOSITORY#*/}"
           echo "WARNING: Unprotecting and destroying Secret Manager resources"
           pulumi config set vibegopher:protectSecrets false
           pulumi up --yes --skip-preview

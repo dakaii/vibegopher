@@ -23,11 +23,8 @@ func deployCloudRun(ctx *pulumi.Context, cfg stackConfig, apis *enabledAPIs, sas
 	}
 
 	// Non-secret runtime config stays as plain env (also suitable for Pulumi config).
+	// Do not set PORT — Cloud Run injects it; setting it returns API error 400.
 	plainEnv := cloudrunv2.ServiceTemplateContainerEnvArray{
-		&cloudrunv2.ServiceTemplateContainerEnvArgs{
-			Name:  pulumi.String("PORT"),
-			Value: pulumi.String("8080"),
-		},
 		&cloudrunv2.ServiceTemplateContainerEnvArgs{
 			Name:  pulumi.String("APP_ENV"),
 			Value: pulumi.String("production"),
