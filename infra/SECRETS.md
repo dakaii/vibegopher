@@ -19,6 +19,12 @@ Pulumi creates Secret Manager **secret containers + IAM**. It does **not** store
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Optional; only if you use authorization-code exchange | Cloud Run API |
 | `GEMINI_API_KEY` | AI bot LLM key (skip later if you move to Vertex ADC) | Cloud Run / bot worker |
 
+Operator-only (created by `store-pulumi-passphrase.sh`, **not** wired into Cloud Run):
+
+| Secret ID | Purpose |
+|-----------|---------|
+| `vibegopher-pulumi-config-passphrase` | Recovery copy of `PULUMI_CONFIG_PASSPHRASE` |
+
 These secrets (and the Secret Manager API enablement) are **protected by default** (`vibegopher:protectSecrets=true`).  
 `pulumi destroy --exclude-protected` tears down Cloud Run / AR / deploy wiring / WIF but **keeps Secret Manager**.
 
@@ -57,7 +63,49 @@ If `DATABASE_URL_MIGRATE` is unset, deploy falls back to `DATABASE_URL` but **re
 
 **No `PULUMI_ACCESS_TOKEN`** — this repo uses a **GCS Pulumi backend** (`PULUMI_BACKEND_URL`). CI authenticates with GitHub → GCP Workload Identity.
 
-Store `PULUMI_CONFIG_PASSPHRASE` in a password manager as well. It is **not** a Pulumi Cloud credential; losing it can lock you out of encrypted stack config.
+### `PULUMI_CONFIG_PASSPHRASE` (where to keep it)
+
+This unlocks encrypted Pulumi stack config on the GCS backend. It is **not** a Pulumi Cloud token. Losing it can lock you out of encrypted stack config.
+
+You do **not** need a dedicated password manager. Use both of these:
+
+| Place | Role |
+|-------|------|
+| **GitHub secret** `PULUMI_CONFIG_PASSPHRASE` | Required for CI deploy/destroy |
+| **GCP Secret Manager** `vibegopher-pulumi-config-passphrase` | Operator recovery copy (humans / laptop). **Not** mounted into Cloud Run |
+
+```bash
+# After choosing a strong passphrase (rotate if it was ever pasted into chat/logs):
+export GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID
+export PULUMI_CONFIG_PASSPHRASE='…strong random value…'
+./infra/scripts/store-pulumi-passphrase.sh
+```
+
+Retrieve later (prints the secret — do this in a private terminal):
+
+```bash
+gcloud secrets versions access latest \
+  --secret=vibegopher-pulumi-config-passphrase \
+  --project=YOUR_GCP_PROJECT_ID
+```
+
+**Do not** commit the passphrase, put it in `config/local.conf`, or store it only in chat/Notes.
+
+#### Rotate the passphrase
+
+Safe to do anytime after the stack exists:
+
+```bash
+cd infra
+export PULUMI_CONFIG_PASSPHRASE='…current…'
+pulumi login "$PULUMI_BACKEND_URL"   # e.g. gs://YOUR_STATE_BUCKET
+pulumi stack select dev
+pulumi stack change-secrets-provider passphrase
+# enter the NEW passphrase when prompted
+
+export PULUMI_CONFIG_PASSPHRASE='…new…'
+./scripts/store-pulumi-passphrase.sh   # updates GitHub + GCP SM
+```
 
 ### Repository variables
 

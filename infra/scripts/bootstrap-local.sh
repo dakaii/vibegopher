@@ -122,11 +122,12 @@ gh variable set PULUMI_STACK --body "${STACK}"
 gh variable set CORS_ORIGIN --body "${CORS_ORIGIN}"
 
 if [[ -n "${PULUMI_CONFIG_PASSPHRASE:-}" ]]; then
-  echo "Writing GitHub secret PULUMI_CONFIG_PASSPHRASE (value not printed)…"
-  printf '%s' "${PULUMI_CONFIG_PASSPHRASE}" | gh secret set PULUMI_CONFIG_PASSPHRASE
+  echo "Storing PULUMI_CONFIG_PASSPHRASE in GitHub + GCP Secret Manager (value not printed)…"
+  GCP_PROJECT_ID="${PROJECT_ID}" PULUMI_CONFIG_PASSPHRASE="${PULUMI_CONFIG_PASSPHRASE}" \
+    "${ROOT}/infra/scripts/store-pulumi-passphrase.sh"
 else
-  echo "warning: skip GitHub secret PULUMI_CONFIG_PASSPHRASE (env unset)." >&2
-  echo "  Set it before Deploy: printf '%s' '…' | gh secret set PULUMI_CONFIG_PASSPHRASE" >&2
+  echo "warning: skip storing PULUMI_CONFIG_PASSPHRASE (env unset)." >&2
+  echo "  export PULUMI_CONFIG_PASSPHRASE=… && ./infra/scripts/store-pulumi-passphrase.sh" >&2
 fi
 
 echo
