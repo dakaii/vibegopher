@@ -33,6 +33,11 @@ if ! command -v pulumi >/dev/null 2>&1; then
   echo "error: pulumi not found" >&2
   exit 1
 fi
+if ! command -v go >/dev/null 2>&1; then
+  echo "error: go not found on PATH (required to compile infra/)" >&2
+  echo "  install: brew install go" >&2
+  exit 1
+fi
 if ! command -v gh >/dev/null 2>&1; then
   echo "error: gh not found (needed to set GitHub variables)" >&2
   exit 1
