@@ -13,8 +13,9 @@ State backend: **GCS** (`PULUMI_BACKEND_URL=gs://…`). No Pulumi Cloud token.
 # Browser login (does not print account emails)
 GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID ./infra/scripts/gcloud-login.sh
 
-# Same passphrase you set/confirm for the GCS stack (also saved to GitHub Secrets by bootstrap)
-export PULUMI_CONFIG_PASSPHRASE='…from password manager…'
+# Strong passphrase for the GCS stack (store in GitHub + GCP SM — see infra/SECRETS.md)
+export PULUMI_CONFIG_PASSPHRASE='…strong random value…'
+./infra/scripts/store-pulumi-passphrase.sh
 
 # Creates/uses private state bucket, pulumi up (no Cloud Run yet),
 # sets WIF GitHub vars, grants deploy SA access to the bucket
@@ -23,6 +24,8 @@ PULUMI_BACKEND_URL=gs://YOUR_STATE_BUCKET \
 GITHUB_OWNER=YOUR_GH_USER_OR_ORG \
 ./infra/scripts/bootstrap-local.sh
 ```
+
+If the passphrase was ever pasted into chat or logs, **rotate it** before relying on deploy (`pulumi stack change-secrets-provider passphrase` — details in [`infra/SECRETS.md`](../infra/SECRETS.md)).
 
 ## 2. Google OAuth (can wait until after first API deploy)
 
@@ -39,7 +42,7 @@ GITHUB_OWNER=YOUR_GH_USER_OR_ORG \
 | `DATABASE_URL` | Neon pooled |
 | `DATABASE_URL_MIGRATE` | Neon direct (non-pooler) |
 | `AUTH_SECRET` | long random string |
-| `PULUMI_CONFIG_PASSPHRASE` | GCS stack config passphrase (password manager + this secret) |
+| `PULUMI_CONFIG_PASSPHRASE` | GCS stack config passphrase (also keep recovery copy in GCP SM) |
 | `GOOGLE_OAUTH_CLIENT_ID` | optional until SPA auth |
 | `GEMINI_API_KEY` | optional until critic |
 

@@ -27,15 +27,17 @@ Bootstrap **locally** once (WIF + Artifact Registry must exist before GitHub Act
 # Browser login (does not print account emails)
 GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID ./infra/scripts/gcloud-login.sh
 
-export PULUMI_CONFIG_PASSPHRASE='…from password manager…'
+export PULUMI_CONFIG_PASSPHRASE='…strong random value…'
+./infra/scripts/store-pulumi-passphrase.sh   # GitHub Secrets + GCP SM recovery copy
 
 # Bucket + pulumi up (Cloud Run off) + GitHub WIF vars + bucket IAM
-# Also writes PULUMI_CONFIG_PASSPHRASE to GitHub Secrets when the env var is set.
 GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID \
 PULUMI_BACKEND_URL=gs://YOUR_STATE_BUCKET \
 GITHUB_OWNER=YOUR_GH_USER_OR_ORG \
 ./infra/scripts/bootstrap-local.sh
 ```
+
+Passphrase storage / rotation: [SECRETS.md](./SECRETS.md).
 
 Or follow the manual steps in [`docs/DEPLOY.md`](../docs/DEPLOY.md).
 
