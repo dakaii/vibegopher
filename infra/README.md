@@ -57,8 +57,9 @@ Then run **Deploy to GCP** (or push to `main`). Deploy logs into the GCS backend
 Destroy defaults:
 
 - `confirm` must be exactly `destroy`
-- `destroy_secrets=false` — keeps protected Secret Manager; **removes** Cloud Run, AR wiring, runtime/deploy SAs, and **WIF**
+- `destroy_secrets=false` — keeps protected Secret Manager (and SAs still referenced by secret IAM); **removes** Cloud Run, Artifact Registry, WIF, and non-protected project IAM
 - Does **not** delete Neon, the GCS state bucket, or GitHub secrets/vars
+- Deploy SA includes `roles/resourcemanager.projectIamAdmin` so CI can delete project `IAMMember` bindings; if destroy fails after WIF is gone, finish with local owner ADC (see [`docs/DEPLOY.md`](../docs/DEPLOY.md))
 
 After destroy, bootstrap locally again before the next CI deploy (WIF is gone). Optional full SM wipe: `-f destroy_secrets=true`.
 

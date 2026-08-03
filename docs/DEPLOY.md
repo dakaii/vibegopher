@@ -177,12 +177,27 @@ gh run watch
 | Still there | Why |
 |-------------|-----|
 | Neon project + data | Out of scope; delete in Neon if you want |
-| GCP Secret Manager secrets (stack) | Protected (`protectSecrets=true` / `--exclude-protected`) |
+| GCP Secret Manager secrets + related IAM / SAs | Protected (`protectSecrets=true` / `--exclude-protected`); runtime/deploy SAs stay while secret IAM bindings remain |
+| Secret Manager + IAM API enablement | Protected with the secrets |
 | GCS Pulumi state bucket | Not a Pulumi-managed app resource; delete manually if retiring the project |
 | GitHub secrets / variables | Untouched; WIF vars become **stale** until you bootstrap again |
 | Operator SM passphrase copy | `vibegopher-pulumi-config-passphrase` (from `store-pulumi-passphrase.sh`) |
 
+Removed by a successful destroy: Cloud Run, Artifact Registry repo, WIF pool/provider, project-level deploy IAM roles (non-protected).
+
 After destroy, CI **cannot** redeploy until you bootstrap locally again and refresh `GCP_WORKLOAD_IDENTITY_PROVIDER` / `GCP_DEPLOY_SERVICE_ACCOUNT` (see job summary and [`infra/README.md`](../infra/README.md)).
+
+**If CI destroy fails mid-flight** (e.g. 403 removing project IAM after WIF is already gone): finish on a laptop with project-owner ADC:
+
+```bash
+GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID ./infra/scripts/gcloud-login.sh
+export PULUMI_CONFIG_PASSPHRASE='…'   # or read from SM recovery secret
+cd infra && pulumi login "$PULUMI_BACKEND_URL"
+pulumi stack select "$PULUMI_STACK"
+pulumi destroy --yes --exclude-protected
+```
+
+The deploy SA is granted `roles/resourcemanager.projectIamAdmin` so a **future** CI destroy can remove its own project IAM bindings (requires a bootstrap/`pulumi up` that applied that role before destroy).
 
 ---
 

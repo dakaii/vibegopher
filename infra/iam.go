@@ -45,6 +45,8 @@ func grantDeployPermissions(ctx *pulumi.Context, cfg stackConfig, sas *serviceAc
 	}).(pulumi.StringOutput)
 
 	// Broad enough for GitHub Actions to run `pulumi up` / `pulumi destroy` on this stack.
+	// projectIamAdmin is required so CI can remove project-level IAMMember bindings on destroy
+	// (without it, destroy fails with 403 getIamPolicy after other resources are gone).
 	// Secret *payloads* are still written via secretVersionManager + sync-secrets.sh.
 	roles := []struct {
 		name string
@@ -57,6 +59,7 @@ func grantDeployPermissions(ctx *pulumi.Context, cfg stackConfig, sas *serviceAc
 		{"deploy-sm-admin", "roles/secretmanager.admin"},
 		{"deploy-wif-admin", "roles/iam.workloadIdentityPoolAdmin"},
 		{"deploy-serviceusage", "roles/serviceusage.serviceUsageAdmin"},
+		{"deploy-project-iam", "roles/resourcemanager.projectIamAdmin"},
 	}
 
 	for _, r := range roles {

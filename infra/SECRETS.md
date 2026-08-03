@@ -143,8 +143,8 @@ gh workflow run "Destroy GCP infrastructure" -f confirm=destroy
 
 | Action | Result |
 |--------|--------|
-| **Destroy** workflow (default) | Removes Cloud Run, Artifact Registry wiring, deploy/runtime SAs, **and WIF**; **keeps Secret Manager** |
-| **Destroy** with `destroy_secrets=true` | Also destroys Secret Manager secrets in this stack |
+| **Destroy** workflow (default) | Removes Cloud Run, Artifact Registry, **WIF**, and non-protected project IAM; **keeps** Secret Manager (+ SAs still tied to secret IAM) |
+| **Destroy** with `destroy_secrets=true` | Also destroys Secret Manager secrets / related protected resources in this stack |
 | **Never destroyed by the workflow** | Neon, GCS Pulumi state bucket, GitHub secrets/vars |
 
 After a default destroy, GitHub Actions **cannot** redeploy until you run a local bootstrap `pulumi up` and refresh `GCP_WORKLOAD_IDENTITY_PROVIDER` / `GCP_DEPLOY_SERVICE_ACCOUNT`.
