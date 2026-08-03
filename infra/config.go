@@ -10,19 +10,20 @@ import (
 // stackConfig holds non-secret infrastructure settings from Pulumi config.
 // Secret payloads do not live here — see SECRETS.md.
 type stackConfig struct {
-	Project                       string
-	Region                        string
-	ServiceName                   string
-	ArtifactRepoID                string
-	ImageName                     string
-	ImageTag                      string
-	GitHubOwner                   string
-	GitHubRepo                    string
-	ProtectSecrets                bool
-	CreatePlaceholderSecretVers   bool
-	EnableCloudRun                bool
-	CloudRunServiceAccountID      string
-	DeployServiceAccountID        string
+	Project                     string
+	Region                      string
+	ServiceName                 string
+	ArtifactRepoID              string
+	ImageName                   string
+	ImageTag                    string
+	GitHubOwner                 string
+	GitHubRepo                  string
+	CorsOrigin                  string
+	ProtectSecrets              bool
+	CreatePlaceholderSecretVers bool
+	EnableCloudRun              bool
+	CloudRunServiceAccountID    string
+	DeployServiceAccountID      string
 }
 
 func loadConfig(ctx *pulumi.Context) (stackConfig, error) {
@@ -75,6 +76,11 @@ func loadConfig(ctx *pulumi.Context) (stackConfig, error) {
 		githubRepo = "vibegopher"
 	}
 
+	corsOrigin := cfg.Get("corsOrigin")
+	if enableCloudRun && corsOrigin == "" {
+		return stackConfig{}, fmt.Errorf("vibegopher:corsOrigin is required when Cloud Run is enabled (frontend origin, e.g. https://app.example.com or http://localhost:5173)")
+	}
+
 	return stackConfig{
 		Project:                     project,
 		Region:                      region,
@@ -84,6 +90,7 @@ func loadConfig(ctx *pulumi.Context) (stackConfig, error) {
 		ImageTag:                    imageTag,
 		GitHubOwner:                 cfg.Get("githubOwner"),
 		GitHubRepo:                  githubRepo,
+		CorsOrigin:                  corsOrigin,
 		ProtectSecrets:              protectSecrets,
 		CreatePlaceholderSecretVers: createPlaceholders,
 		EnableCloudRun:              enableCloudRun,

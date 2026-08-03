@@ -37,7 +37,7 @@ jobs:
       - name: Validate required GitHub configuration
         run: |
           missing=0
-          for v in GCP_PROJECT_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_DEPLOY_SERVICE_ACCOUNT; do
+          for v in GCP_PROJECT_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_DEPLOY_SERVICE_ACCOUNT CORS_ORIGIN; do
             if [ -z "${!v}" ]; then
               echo "Missing repository variable: $v"
               missing=1
@@ -57,6 +57,7 @@ jobs:
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_MIGRATE: ${{ secrets.DATABASE_URL_MIGRATE }}
@@ -112,11 +113,13 @@ jobs:
         working-directory: infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
         run: |
           pulumi stack select "${PULUMI_STACK}"
           pulumi config set gcp:project "${GCP_PROJECT_ID}"
           pulumi config set vibegopher:region "${GCP_REGION}"
           pulumi config set vibegopher:imageTag "${{ steps.meta.outputs.tag }}"
+          pulumi config set vibegopher:corsOrigin "${CORS_ORIGIN}"
           pulumi config set vibegopher:protectSecrets true
           pulumi config set vibegopher:enableCloudRun true
           pulumi up --yes

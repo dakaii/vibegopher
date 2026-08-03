@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
+import { isCriticMuted } from '../preferences'
 import type { Comment, Post } from '../types'
 
 const props = defineProps<{
   post: Post
+  refreshTick?: number
+  muteCritic?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -15,6 +18,12 @@ const comments = ref<Comment[]>([])
 const draft = ref('')
 const error = ref('')
 const busy = ref(false)
+
+const visibleComments = computed(() => {
+  const muted = props.muteCritic ?? isCriticMuted()
+  if (!muted) return comments.value
+  return comments.value.filter((c) => !c.user?.is_bot)
+})
 
 async function loadComments() {
   try {
@@ -53,6 +62,13 @@ function formatTime(value?: string) {
 onMounted(() => {
   void loadComments()
 })
+
+watch(
+  () => props.refreshTick,
+  () => {
+    void loadComments()
+  },
+)
 </script>
 
 <template>
@@ -66,11 +82,8 @@ onMounted(() => {
     <p class="post-body">{{ post.content }}</p>
 
     <div class="comments">
-      <div v-for="c in comments" :key="c.id" class="comment">
-        <strong
-          class="post-author"
-          :class="{ bot: c.user?.is_bot || c.user?.username === 'vibe_critic' }"
-        >
+      <div v-for="c in visibleComments" :key="c.id" class="comment">
+        <strong class="post-author" :class="{ bot: c.user?.is_bot }">
           @{{ c.user?.username || 'unknown' }}
         </strong>
         <span class="post-meta"> · {{ formatTime(c.created_at) }}</span>

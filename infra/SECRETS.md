@@ -64,6 +64,7 @@ If `DATABASE_URL_MIGRATE` is unset, deploy falls back to `DATABASE_URL` but **re
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | Full WIF provider resource name (from stack output) |
 | `GCP_DEPLOY_SERVICE_ACCOUNT` | Deploy SA email (from stack output) |
 | `PULUMI_STACK` | e.g. `dev` or `prod` |
+| `CORS_ORIGIN` | Frontend origin(s) for the API (`https://app.example.com` or comma-separated). Synced into Pulumi as `vibegopher:corsOrigin` / Cloud Run `CORS_ORIGIN`. |
 
 No long-lived GCP JSON keys — deploy uses **Workload Identity Federation**.
 

@@ -29,12 +29,20 @@ func deployCloudRun(ctx *pulumi.Context, cfg stackConfig, apis *enabledAPIs, sas
 			Value: pulumi.String("8080"),
 		},
 		&cloudrunv2.ServiceTemplateContainerEnvArgs{
+			Name:  pulumi.String("APP_ENV"),
+			Value: pulumi.String("production"),
+		},
+		&cloudrunv2.ServiceTemplateContainerEnvArgs{
 			Name:  pulumi.String("HASH_COST"),
 			Value: pulumi.String("14"),
 		},
-		// Poll bot_jobs in-process (use min instances >= 1 in prod for reliable workers).
 		&cloudrunv2.ServiceTemplateContainerEnvArgs{
-			Name:  pulumi.String("BOT_WORKER_ENABLED"),
+			Name:  pulumi.String("CORS_ORIGIN"),
+			Value: pulumi.String(cfg.CorsOrigin),
+		},
+		// Poll bot_jobs in-process (min instances >= 1 for reliable workers).
+		&cloudrunv2.ServiceTemplateContainerEnvArgs{
+			Name:  pulumi.String("CRITIC_WORKER_ENABLED"),
 			Value: pulumi.String("true"),
 		},
 	}
@@ -62,7 +70,7 @@ func deployCloudRun(ctx *pulumi.Context, cfg stackConfig, apis *enabledAPIs, sas
 				},
 			},
 			Scaling: &cloudrunv2.ServiceTemplateScalingArgs{
-				// Keep one instance warm so the in-process bot worker keeps polling.
+				// Keep one instance warm so the in-process critic worker keeps polling.
 				MinInstanceCount: pulumi.Int(1),
 				MaxInstanceCount: pulumi.Int(5),
 			},

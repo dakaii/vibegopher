@@ -1,0 +1,28 @@
+# Keep the build context small and secret-free.
+# Note: production image only copies the compiled binary; tests still need
+# source + testing/ when building Dockerfile.testing.
+
+.git
+.github
+.vscode
+.cursor
+.env
+.env.*
+**/.env
+**/.env.*
+
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.env.*
+
+# IaC and local tooling are not needed to compile the API/tests.
+infra/vendor
+infra/.pulumi
+*.pulumi
+.pulumi
+build
+act
+**/.DS_Store
+**/*~
+*.log

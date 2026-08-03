@@ -3,6 +3,9 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/dakaii/vibegopher/internal/domain"
 	"github.com/google/uuid"
@@ -24,7 +27,7 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request, user domai
 
 	createdPost, err := h.controllers.PostController.CreatePost(post)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusBadRequest)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -32,15 +35,56 @@ func (h *Handlers) CreatePost(w http.ResponseWriter, r *http.Request, user domai
 	h.writeJSON(w, createdPost, http.StatusCreated)
 }
 
-// GetAllPosts handles retrieving all posts
+// GetAllPosts handles retrieving posts (newest first).
+// Optional query: limit (default 20, max 100), before="<RFC3339Nano>|<uuid>" cursor.
 func (h *Handlers) GetAllPosts(w http.ResponseWriter, r *http.Request) {
-	posts, err := h.controllers.PostController.GetAllPosts()
+	limit := 20
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n <= 0 {
+			h.writeError(w, "Invalid limit", http.StatusBadRequest)
+			return
+		}
+		limit = n
+	}
+
+	var beforeAt time.Time
+	var beforeID uuid.UUID
+	if raw := strings.TrimSpace(r.URL.Query().Get("before")); raw != "" {
+		at, id, err := parsePostCursor(raw)
+		if err != nil {
+			h.writeError(w, "Invalid before cursor", http.StatusBadRequest)
+			return
+		}
+		beforeAt, beforeID = at, id
+	}
+
+	posts, err := h.controllers.PostController.ListPosts(limit, beforeAt, beforeID)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 
 	h.writeJSON(w, posts, http.StatusOK)
+}
+
+func parsePostCursor(raw string) (time.Time, uuid.UUID, error) {
+	parts := strings.SplitN(raw, "|", 2)
+	if len(parts) != 2 {
+		return time.Time{}, uuid.Nil, strconv.ErrSyntax
+	}
+	at, err := time.Parse(time.RFC3339Nano, parts[0])
+	if err != nil {
+		at, err = time.Parse(time.RFC3339, parts[0])
+		if err != nil {
+			return time.Time{}, uuid.Nil, err
+		}
+	}
+	id, err := uuid.Parse(parts[1])
+	if err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	return at, id, nil
 }
 
 // GetPostByID handles retrieving a post by ID
@@ -56,7 +100,7 @@ func (h *Handlers) GetPostByID(w http.ResponseWriter, r *http.Request) {
 
 	post, err := h.controllers.PostController.GetPostByID(id)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusNotFound)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -76,7 +120,7 @@ func (h *Handlers) GetPostsByUserID(w http.ResponseWriter, r *http.Request) {
 
 	posts, err := h.controllers.PostController.GetPostsByUserID(userID)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -118,7 +162,7 @@ func (h *Handlers) UpdatePost(w http.ResponseWriter, r *http.Request, user domai
 
 	updatedPost, err := h.controllers.PostController.UpdatePost(id, updates)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusBadRequest)
+		h.writeErr(w, err)
 		return
 	}
 
@@ -150,7 +194,7 @@ func (h *Handlers) DeletePost(w http.ResponseWriter, r *http.Request, user domai
 
 	err = h.controllers.PostController.DeletePost(id)
 	if err != nil {
-		h.writeError(w, err.Error(), http.StatusInternalServerError)
+		h.writeErr(w, err)
 		return
 	}
 

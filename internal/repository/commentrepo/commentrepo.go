@@ -10,120 +10,63 @@ import (
 	"gorm.io/gorm"
 )
 
-// CommentRepo handles comment database operations
 type CommentRepo struct {
 	db *gorm.DB
 }
 
-// NewCommentRepo creates a new comment repository
 func NewCommentRepo(db *gorm.DB) *CommentRepo {
-	return &CommentRepo{
-		db: db,
-	}
+	return &CommentRepo{db: db}
 }
 
-// CreateComment creates a new comment in the database
 func (repo *CommentRepo) CreateComment(comment domain.Comment) (*domain.Comment, error) {
 	dbComment := CommentEntity{
 		Content: comment.Content,
 		UserID:  comment.UserID,
 		PostID:  comment.PostID,
 	}
-
-	result := repo.db.Create(&dbComment)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := repo.db.Create(&dbComment).Error; err != nil {
+		return nil, err
 	}
-
 	return repo.GetCommentByID(dbComment.ID)
 }
 
-// GetCommentByID fetches a comment by ID with user information
 func (repo *CommentRepo) GetCommentByID(id uuid.UUID) (*domain.Comment, error) {
 	var comment CommentEntity
-	result := repo.db.Preload("User").Where("id = ?", id).First(&comment)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	err := repo.db.Preload("User").Where("id = ?", id).First(&comment).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("no comment found with ID: %s", id)
 		}
-		return nil, result.Error
+		return nil, err
 	}
-
-	return &domain.Comment{
-		ID:        comment.ID,
-		CreatedAt: comment.CreatedAt,
-		UpdatedAt: comment.UpdatedAt,
-		Content:   comment.Content,
-		UserID:    comment.UserID,
-		PostID:    comment.PostID,
-		User: domain.User{
-			ID:        comment.User.ID,
-			Username:  comment.User.Username,
-			CreatedAt: comment.User.CreatedAt,
-			UpdatedAt: comment.User.UpdatedAt,
-		},
-	}, nil
+	out := toDomain(comment)
+	return &out, nil
 }
 
-// GetCommentsByPostID fetches all comments for a specific post
 func (repo *CommentRepo) GetCommentsByPostID(postID uuid.UUID) ([]domain.Comment, error) {
 	var comments []CommentEntity
-	result := repo.db.Preload("User").Where("post_id = ?", postID).Order("created_at ASC").Find(&comments)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := repo.db.Preload("User").Where("post_id = ?", postID).Order("created_at ASC").Limit(200).Find(&comments).Error; err != nil {
+		return nil, err
 	}
-
-	domainComments := make([]domain.Comment, len(comments))
+	out := make([]domain.Comment, len(comments))
 	for i, comment := range comments {
-		domainComments[i] = domain.Comment{
-			ID:        comment.ID,
-			CreatedAt: comment.CreatedAt,
-			UpdatedAt: comment.UpdatedAt,
-			Content:   comment.Content,
-			UserID:    comment.UserID,
-			PostID:    comment.PostID,
-			User: domain.User{
-				ID:        comment.User.ID,
-				Username:  comment.User.Username,
-				CreatedAt: comment.User.CreatedAt,
-				UpdatedAt: comment.User.UpdatedAt,
-			},
-		}
+		out[i] = toDomain(comment)
 	}
-
-	return domainComments, nil
+	return out, nil
 }
 
-// GetCommentsByUserID fetches all comments by a specific user
 func (repo *CommentRepo) GetCommentsByUserID(userID uuid.UUID) ([]domain.Comment, error) {
 	var comments []CommentEntity
-	result := repo.db.Preload("User").Where("user_id = ?", userID).Order("created_at DESC").Find(&comments)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := repo.db.Preload("User").Where("user_id = ?", userID).Order("created_at DESC").Limit(100).Find(&comments).Error; err != nil {
+		return nil, err
 	}
-
-	domainComments := make([]domain.Comment, len(comments))
+	out := make([]domain.Comment, len(comments))
 	for i, comment := range comments {
-		domainComments[i] = domain.Comment{
-			ID:        comment.ID,
-			CreatedAt: comment.CreatedAt,
-			UpdatedAt: comment.UpdatedAt,
-			Content:   comment.Content,
-			UserID:    comment.UserID,
-			PostID:    comment.PostID,
-			User: domain.User{
-				ID:        comment.User.ID,
-				Username:  comment.User.Username,
-				CreatedAt: comment.User.CreatedAt,
-				UpdatedAt: comment.User.UpdatedAt,
-			},
-		}
+		out[i] = toDomain(comment)
 	}
-
-	return domainComments, nil
+	return out, nil
 }
 
-// UpdateComment updates an existing comment
 func (repo *CommentRepo) UpdateComment(id uuid.UUID, updates domain.Comment) (*domain.Comment, error) {
 	result := repo.db.Model(&CommentEntity{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"content":    updates.Content,
@@ -135,11 +78,9 @@ func (repo *CommentRepo) UpdateComment(id uuid.UUID, updates domain.Comment) (*d
 	if result.RowsAffected == 0 {
 		return nil, fmt.Errorf("no comment found with ID: %s", id)
 	}
-
 	return repo.GetCommentByID(id)
 }
 
-// DeleteComment deletes a comment by ID
 func (repo *CommentRepo) DeleteComment(id uuid.UUID) error {
 	result := repo.db.Delete(&CommentEntity{}, id)
 	if result.Error != nil {
@@ -151,37 +92,48 @@ func (repo *CommentRepo) DeleteComment(id uuid.UUID) error {
 	return nil
 }
 
-// CommentEntity represents the comment entity in the database
 type CommentEntity struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	Content   string         `gorm:"type:text;not null"`
-	UserID    uuid.UUID      `gorm:"type:uuid;not null"`
-	PostID    uuid.UUID      `gorm:"type:uuid;not null"`
-	User      UserEntity     `gorm:"foreignKey:UserID;references:ID"`
+	Content   string     `gorm:"type:text;not null"`
+	UserID    uuid.UUID  `gorm:"type:uuid;not null"`
+	PostID    uuid.UUID  `gorm:"type:uuid;not null"`
+	User      UserEntity `gorm:"foreignKey:UserID;references:ID"`
 }
 
-// UserEntity embedded for preloading
 type UserEntity struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Username  string `gorm:"unique;index;not null"`
+	IsBot     bool   `gorm:"column:is_bot;not null;default:false"`
 }
 
-// BeforeCreate sets a UUID for the comment
-func (comment *CommentEntity) BeforeCreate(tx *gorm.DB) (err error) {
-	comment.ID = uuid.New()
-	return
+func (comment *CommentEntity) BeforeCreate(tx *gorm.DB) error {
+	if comment.ID == uuid.Nil {
+		comment.ID = uuid.New()
+	}
+	return nil
 }
 
-// TableName overrides the table name
-func (comment *CommentEntity) TableName() string {
-	return "comments"
-}
+func (CommentEntity) TableName() string { return "comments" }
+func (UserEntity) TableName() string    { return "users" }
 
-// TableName for UserEntity when used in comment context
-func (user *UserEntity) TableName() string {
-	return "users"
+func toDomain(comment CommentEntity) domain.Comment {
+	return domain.Comment{
+		ID:        comment.ID,
+		CreatedAt: comment.CreatedAt,
+		UpdatedAt: comment.UpdatedAt,
+		Content:   comment.Content,
+		UserID:    comment.UserID,
+		PostID:    comment.PostID,
+		User: domain.User{
+			ID:        comment.User.ID,
+			Username:  comment.User.Username,
+			CreatedAt: comment.User.CreatedAt,
+			UpdatedAt: comment.User.UpdatedAt,
+			IsBot:     comment.User.IsBot,
+		},
+	}
 }

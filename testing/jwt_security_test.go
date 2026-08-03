@@ -23,7 +23,10 @@ func TestJWTSecurity(t *testing.T) {
 		Password: "super-secret-hash",
 	}
 
-	token := auth.GenerateJWT(user)
+	token, err := auth.GenerateJWT(user)
+	if err != nil {
+		t.Fatalf("GenerateJWT: %v", err)
+	}
 	fmt.Printf("Generated token: %s\n", token.Token)
 
 	verifiedUser, err := auth.VerifyJWT(token.Token)
