@@ -1,12 +1,22 @@
 # VibeGopher
 
-Public Twitter-style demo: Go REST API, Vue 3 SPA, and `@vibe_critic` (Gemini) that replies to posts and comments.
+**Public template** for a Twitter-style demo: Go REST API, Vue 3 SPA, Neon Postgres, `@vibe_critic` (Gemini), and Pulumi → GCP (Cloud Run + GCS state + GitHub Actions WIF).
 
-This repository is intentionally **open**. A future Slack SaaS built around the same critic idea should live in a **separate private repo** — do not add Slack product code here.
+Fork or use as a reference stack. A production Slack SaaS / alternate auth product should live in a **separate private repo** that references this template — do not add Slack product code here.
+
+## Template at a glance
+
+| You get | You bring |
+|---------|-----------|
+| App + critic worker + Vue SPA | Neon project (pooled + direct URLs) |
+| Pulumi infra + Deploy/Destroy workflows | GCP project + one-time local bootstrap |
+| Google GIS auth on `main` | GitHub secrets/vars (see [`docs/DEPLOY.md`](./docs/DEPLOY.md)) |
+
+Full checklist (bootstrap → deploy → destroy leftovers): [`docs/DEPLOY.md`](./docs/DEPLOY.md).
 
 ## Features
 
-- Google Sign-In (primary) + app JWT sessions
+- Google Sign-In (GIS) + app JWT sessions (primary on `main`)
 - Posts & comments (280 chars)
 - Async critic worker on `bot_jobs` (in-process or `cmd/bot`)
 - PostgreSQL via goose migrations (Neon in cloud)
@@ -20,7 +30,8 @@ This repository is intentionally **open**. A future Slack SaaS built around the 
 | Migrations | [goose](https://github.com/pressly/goose) SQL in `db/migrations` |
 | Frontend | Vue 3 + TypeScript + Biome (`frontend/`) |
 | AI | Gemini via `internal/critic` |
-| Infra | Pulumi (Go) → GCP |
+| DB (cloud) | Neon |
+| Infra | Pulumi (Go) → GCP Cloud Run, Artifact Registry, Secret Manager, WIF |
 
 ## Prerequisites
 
@@ -104,11 +115,16 @@ docker compose up backend    # no local-db profile → no local Postgres
 - **bot_jobs** — async critic queue
 - Seeded bot user: `@vibe_critic` (`is_bot=true`)
 
-## GCP deploy
+## GCP deploy / destroy
 
-See [`docs/DEPLOY.md`](./docs/DEPLOY.md). Push to `main` runs build → `pulumi up` → secret sync → goose migrate → Cloud Run bump. Destroy keeps Secret Manager protected by default.
+See the template checklist: [`docs/DEPLOY.md`](./docs/DEPLOY.md).
+
+- **Deploy:** push to `main` or `gh workflow run "Deploy to GCP"` — build → secret sync → `pulumi up` → goose migrate → Cloud Run bump.
+- **Destroy:** `gh workflow run "Destroy GCP infrastructure" -f confirm=destroy` — default keeps Secret Manager; does **not** touch Neon or the GCS state bucket. Details: [`infra/README.md`](./infra/README.md).
 
 Secret placement (GCP Secret Manager vs Pulumi vs GitHub): [`infra/SECRETS.md`](./infra/SECRETS.md).
+
+Auth note: `main` uses Google GIS. Clerk migration is optional/unmerged ([PR #14](https://github.com/dakaii/vibegopher/pull/14)); prefer a private product repo for Clerk/Slack.
 
 ## License
 

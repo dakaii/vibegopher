@@ -43,24 +43,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Pulumi backend
+      - name: Validate Pulumi backend and project
         run: |
-          if [ -z "${PULUMI_BACKEND_URL}" ]; then
-            echo "Missing repository variable: PULUMI_BACKEND_URL"
-            exit 1
+          missing=0
+          for v in GCP_PROJECT_ID PULUMI_BACKEND_URL GCP_WORKLOAD_IDENTITY_PROVIDER GCP_DEPLOY_SERVICE_ACCOUNT CORS_ORIGIN; do
+            if [ -z "${!v}" ]; then
+              echo "Missing repository variable: $v"
+              missing=1
+            fi
+          done
+          if [ -z "${PULUMI_CONFIG_PASSPHRASE}" ]; then
+            echo "Missing repository secret: PULUMI_CONFIG_PASSPHRASE"
+            missing=1
           fi
           case "${PULUMI_BACKEND_URL}" in
             gs://*) ;;
             *)
               echo "PULUMI_BACKEND_URL must be a gs:// bucket URL"
-              exit 1
+              missing=1
               ;;
           esac
-          if [ -z "${PULUMI_CONFIG_PASSPHRASE}" ]; then
-            echo "Missing repository secret: PULUMI_CONFIG_PASSPHRASE"
-            exit 1
-          fi
+          exit "$missing"
         env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Authenticate to Google Cloud
@@ -81,9 +90,15 @@ jobs:
       - name: Destroy (keep Secret Manager)
         if: ${{ inputs.destroy_secrets == false }}
         working-directory: infra
+        env:
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
         run: |
           pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
+          # Stack config YAML is not in git — re-apply required keys like deploy.yml.
+          pulumi config set gcp:project "${GCP_PROJECT_ID}"
+          pulumi config set vibegopher:region "${GCP_REGION}"
+          pulumi config set vibegopher:corsOrigin "${CORS_ORIGIN}"
           pulumi config set vibegopher:githubOwner "${GITHUB_REPOSITORY_OWNER}"
           pulumi config set vibegopher:githubRepo "${GITHUB_REPOSITORY#*/}"
           pulumi config set vibegopher:protectSecrets true
@@ -95,9 +110,14 @@ jobs:
       - name: Destroy including Secret Manager
         if: ${{ inputs.destroy_secrets == true }}
         working-directory: infra
+        env:
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
         run: |
           pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
+          pulumi config set gcp:project "${GCP_PROJECT_ID}"
+          pulumi config set vibegopher:region "${GCP_REGION}"
+          pulumi config set vibegopher:corsOrigin "${CORS_ORIGIN}"
           pulumi config set vibegopher:githubOwner "${GITHUB_REPOSITORY_OWNER}"
           pulumi config set vibegopher:githubRepo "${GITHUB_REPOSITORY#*/}"
           echo "WARNING: Unprotecting and destroying Secret Manager resources"
@@ -106,6 +126,7 @@ jobs:
           pulumi destroy --yes
 
       - name: Summary
+        if: always()
         run: |
           {
             echo "## Destroy finished"
@@ -116,6 +137,12 @@ jobs:
               echo "Secret Manager API + secrets were **kept** (\`--exclude-protected\`)."
             fi
             echo ""
+            echo "### Not destroyed by this workflow"
+            echo "- **Neon** project / databases (manage in Neon console)"
+            echo "- **GCS Pulumi state bucket** (\`PULUMI_BACKEND_URL\`)"
+            echo "- **GitHub** repository secrets and variables"
+            echo "- Operator recovery secret \`vibegopher-pulumi-config-passphrase\` (outside the stack protect set may still remain)"
+            echo ""
             echo "### Re-deploy is not automatic"
             echo "This destroy also removes Workload Identity Federation and the deploy service account."
             echo "GitHub Actions **cannot** authenticate until you bootstrap again locally:"
@@ -123,10 +150,18 @@ jobs:
             echo '```bash'
             echo 'GCP_PROJECT_ID=… ./infra/scripts/gcloud-login.sh'
             echo 'cd infra && pulumi login "$PULUMI_BACKEND_URL"'
+            echo 'pulumi config set gcp:project "$GCP_PROJECT_ID"'
             echo 'pulumi config set vibegopher:enableCloudRun false && pulumi up'
             echo '# copy workloadIdentityProvider + deployServiceAccount back into GitHub variables'
             echo '# re-grant deploy SA objectAdmin on the state bucket'
             echo '```'
             echo ""
             echo "Then run the Deploy workflow (or push to \`main\`)."
+            echo ""
+            echo "### How to run this workflow"
+            echo '```bash'
+            echo 'gh workflow run "Destroy GCP infrastructure" -f confirm=destroy'
+            echo '# optional full SM wipe:'
+            echo 'gh workflow run "Destroy GCP infrastructure" -f confirm=destroy -f destroy_secrets=true'
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
