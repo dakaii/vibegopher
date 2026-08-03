@@ -38,12 +38,13 @@ if ! command -v gcloud >/dev/null 2>&1; then
 fi
 
 echo "Step 1/3: gcloud user login (browser)…"
-# Quiet: avoid dumping account lists / emails to the terminal.
-gcloud auth login --quiet --update-adc=false
+# Omit --update-adc: older CLIs reject --update-adc=false; ADC is step 2.
+# Redirect stdout to avoid account-list noise; errors still show on stderr.
+gcloud auth login >/dev/null
 
 echo "Step 2/3: Application Default Credentials (browser)…"
 # Pulumi GCP provider and many local tools use ADC, not only gcloud user creds.
-gcloud auth application-default login --quiet
+gcloud auth application-default login >/dev/null
 
 echo "Step 3/3: set project + verify (no identity printed)…"
 gcloud config set project "${PROJECT_ID}" --quiet
@@ -63,5 +64,8 @@ if ! gcloud projects describe "${PROJECT_ID}" --format='value(projectId)' >/dev/
 fi
 
 echo "ok: gcloud + ADC ready for project ${PROJECT_ID}"
-echo "next: cd infra && pulumi login   # or: pulumi login gs://YOUR_STATE_BUCKET"
-echo "      then pulumi stack select / pulumi up (see infra/README.md)"
+echo "next:"
+echo "  GCP_PROJECT_ID=${PROJECT_ID} \\"
+echo "  PULUMI_BACKEND_URL=gs://YOUR_STATE_BUCKET \\"
+echo "  GITHUB_OWNER=YOUR_GH_USER_OR_ORG \\"
+echo "  ./infra/scripts/bootstrap-local.sh"
