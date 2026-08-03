@@ -45,7 +45,6 @@ Set with `pulumi config set` (from `infra/`):
 
 | Name | Required | Purpose |
 |------|----------|---------|
-| `PULUMI_ACCESS_TOKEN` | yes | Pulumi Cloud access |
 | `DATABASE_URL` | yes | Neon **pooled** URL → synced to GCP SM for Cloud Run |
 | `DATABASE_URL_MIGRATE` | strongly recommended | Neon **direct** (non-pooler) URL for goose; supports session advisory locks |
 | `AUTH_SECRET` | yes | Synced into GCP SM; deploy fails if missing/`REPLACE_ME` |
@@ -55,18 +54,21 @@ Set with `pulumi config set` (from `infra/`):
 
 If `DATABASE_URL_MIGRATE` is unset, deploy falls back to `DATABASE_URL` but **rejects** URLs containing `-pooler`.
 
+**No `PULUMI_ACCESS_TOKEN`** — this repo uses a **GCS Pulumi backend** (`PULUMI_BACKEND_URL`). CI authenticates with GitHub → GCP Workload Identity.
+
 ### Repository variables
 
 | Name | Purpose |
 |------|---------|
 | `GCP_PROJECT_ID` | Target project |
 | `GCP_REGION` | e.g. `us-central1` |
+| `PULUMI_BACKEND_URL` | `gs://YOUR_STATE_BUCKET` (private bucket; CI + local must use the same) |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | Full WIF provider resource name (from stack output) |
 | `GCP_DEPLOY_SERVICE_ACCOUNT` | Deploy SA email (from stack output) |
 | `PULUMI_STACK` | e.g. `dev` or `prod` |
 | `CORS_ORIGIN` | Frontend origin(s) for the API (`https://app.example.com` or comma-separated). Synced into Pulumi as `vibegopher:corsOrigin` / Cloud Run `CORS_ORIGIN`. |
 
-No long-lived GCP JSON keys — deploy uses **Workload Identity Federation**.
+No long-lived GCP JSON keys — deploy uses **Workload Identity Federation**. The deploy SA also needs `roles/storage.objectAdmin` on the state bucket (bootstrap script grants this).
 
 ## Neon
 

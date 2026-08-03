@@ -25,6 +25,7 @@ env:
   PULUMI_STACK: ${{ vars.PULUMI_STACK || 'dev' }}
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
 
 jobs:
   destroy:
@@ -40,6 +41,20 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate Pulumi backend
+        run: |
+          if [ -z "${PULUMI_BACKEND_URL}" ]; then
+            echo "Missing repository variable: PULUMI_BACKEND_URL"
+            exit 1
+          fi
+          case "${PULUMI_BACKEND_URL}" in
+            gs://*) ;;
+            *)
+              echo "PULUMI_BACKEND_URL must be a gs:// bucket URL"
+              exit 1
+              ;;
+          esac
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -59,9 +74,8 @@ jobs:
       - name: Destroy (keep Secret Manager)
         if: ${{ inputs.destroy_secrets == false }}
         working-directory: infra
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
         run: |
+          pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
           pulumi config set vibegopher:protectSecrets true
           # Ensure protect flags are applied before destroy.
@@ -72,9 +86,8 @@ jobs:
       - name: Destroy including Secret Manager
         if: ${{ inputs.destroy_secrets == true }}
         working-directory: infra
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
         run: |
+          pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
           echo "WARNING: Unprotecting and destroying Secret Manager resources"
           pulumi config set vibegopher:protectSecrets false
@@ -97,8 +110,11 @@ jobs:
             echo "GitHub Actions **cannot** authenticate until you bootstrap again locally:"
             echo ""
             echo '```bash'
-            echo 'cd infra && pulumi config set vibegopher:enableCloudRun false && pulumi up'
+            echo 'GCP_PROJECT_ID=… ./infra/scripts/gcloud-login.sh'
+            echo 'cd infra && pulumi login "$PULUMI_BACKEND_URL"'
+            echo 'pulumi config set vibegopher:enableCloudRun false && pulumi up'
             echo '# copy workloadIdentityProvider + deployServiceAccount back into GitHub variables'
+            echo '# re-grant deploy SA objectAdmin on the state bucket'
             echo '```'
             echo ""
             echo "Then run the Deploy workflow (or push to \`main\`)."
