@@ -27,7 +27,10 @@ Bootstrap **locally** once (WIF + Artifact Registry must exist before GitHub Act
 # Browser login (does not print account emails)
 GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID ./infra/scripts/gcloud-login.sh
 
+export PULUMI_CONFIG_PASSPHRASE='…from password manager…'
+
 # Bucket + pulumi up (Cloud Run off) + GitHub WIF vars + bucket IAM
+# Also writes PULUMI_CONFIG_PASSPHRASE to GitHub Secrets when the env var is set.
 GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID \
 PULUMI_BACKEND_URL=gs://YOUR_STATE_BUCKET \
 GITHUB_OWNER=YOUR_GH_USER_OR_ORG \

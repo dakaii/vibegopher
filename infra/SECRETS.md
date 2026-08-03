@@ -48,6 +48,7 @@ Set with `pulumi config set` (from `infra/`):
 | `DATABASE_URL` | yes | Neon **pooled** URL → synced to GCP SM for Cloud Run |
 | `DATABASE_URL_MIGRATE` | strongly recommended | Neon **direct** (non-pooler) URL for goose; supports session advisory locks |
 | `AUTH_SECRET` | yes | Synced into GCP SM; deploy fails if missing/`REPLACE_ME` |
+| `PULUMI_CONFIG_PASSPHRASE` | yes | Unlocks encrypted Pulumi stack config on the **GCS** backend (local + CI must match) |
 | `GOOGLE_OAUTH_CLIENT_ID` | optional | Synced if present |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | optional | Synced if present |
 | `GEMINI_API_KEY` | optional | Synced if present |
@@ -55,6 +56,8 @@ Set with `pulumi config set` (from `infra/`):
 If `DATABASE_URL_MIGRATE` is unset, deploy falls back to `DATABASE_URL` but **rejects** URLs containing `-pooler`.
 
 **No `PULUMI_ACCESS_TOKEN`** — this repo uses a **GCS Pulumi backend** (`PULUMI_BACKEND_URL`). CI authenticates with GitHub → GCP Workload Identity.
+
+Store `PULUMI_CONFIG_PASSPHRASE` in a password manager as well. It is **not** a Pulumi Cloud credential; losing it can lock you out of encrypted stack config.
 
 ### Repository variables
 

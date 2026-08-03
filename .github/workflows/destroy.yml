@@ -26,6 +26,7 @@ env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
   PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
 jobs:
   destroy:
@@ -55,6 +56,12 @@ jobs:
               exit 1
               ;;
           esac
+          if [ -z "${PULUMI_CONFIG_PASSPHRASE}" ]; then
+            echo "Missing repository secret: PULUMI_CONFIG_PASSPHRASE"
+            exit 1
+          fi
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
