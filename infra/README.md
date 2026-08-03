@@ -1,5 +1,7 @@
 # VibeGopher GCP infrastructure (Pulumi)
 
+Part of the **public template**: fork this repo, bring your own Neon + GCP project, bootstrap once locally, then deploy/destroy from GitHub Actions. Production Slack/auth products should live in a **private** derivative — not in this open template.
+
 Provisions:
 
 - Cloud Run API service
@@ -8,12 +10,14 @@ Provisions:
 - Runtime + deploy service accounts
 - GitHub Actions Workload Identity Federation (when `githubOwner` is set)
 
+Does **not** provision: Neon, the GCS state bucket lifecycle (bootstrap creates/uses it), or GitHub secrets/vars.
+
 ## Prerequisites
 
 - [Pulumi CLI](https://www.pulumi.com/docs/install/)
-- Go 1.22+
+- Go 1.24+ (infra program)
 - `gcloud` authenticated to the target project (`./infra/scripts/gcloud-login.sh`)
-- A Pulumi backend (`pulumi login`)
+- A Pulumi backend (`pulumi login` to `gs://…`)
 
 ### Pulumi backend: GCS (default for this repo)
 
@@ -39,14 +43,29 @@ GITHUB_OWNER=YOUR_GH_USER_OR_ORG \
 
 Passphrase storage / rotation: [SECRETS.md](./SECRETS.md).
 
-Or follow the manual steps in [`docs/DEPLOY.md`](../docs/DEPLOY.md).
+Full checklist (what you bring, Google auth, destroy leftovers): [`docs/DEPLOY.md`](../docs/DEPLOY.md).
 
 Then run **Deploy to GCP** (or push to `main`). Deploy logs into the GCS backend, sets `enableCloudRun=true`, syncs secrets, migrates, and updates Cloud Run.
 
 ## Deploy / destroy via GitHub Actions
 
-- **Deploy** — `.github/workflows/deploy.yml` on push to `main` (build/push → `pulumi up` → sync secrets → goose migrate → Cloud Run revision bump)
-- **Destroy** — `.github/workflows/destroy.yml` (`workflow_dispatch`); by default keeps Secret Manager but **removes WIF/deploy SA** — bootstrap locally again before the next CI deploy
+| Workflow | File | How to run |
+|----------|------|------------|
+| **Deploy** | `.github/workflows/deploy.yml` | Push to `main` or `gh workflow run "Deploy to GCP"` |
+| **Destroy** | `.github/workflows/destroy.yml` | `gh workflow run "Destroy GCP infrastructure" -f confirm=destroy` |
+
+Destroy defaults:
+
+- `confirm` must be exactly `destroy`
+- `destroy_secrets=false` — keeps protected Secret Manager; **removes** Cloud Run, AR wiring, runtime/deploy SAs, and **WIF**
+- Does **not** delete Neon, the GCS state bucket, or GitHub secrets/vars
+
+After destroy, bootstrap locally again before the next CI deploy (WIF is gone). Optional full SM wipe: `-f destroy_secrets=true`.
+
+```bash
+gh workflow run "Destroy GCP infrastructure" -f confirm=destroy
+gh run watch
+```
 
 ## Protect Secret Manager (default)
 
@@ -70,5 +89,8 @@ To also delete secrets, run the Destroy workflow with `destroy_secrets=true` (re
 | `iam.go` | Runtime / deploy service accounts |
 | `cloudrun.go` | Cloud Run service |
 | `github_wif.go` | GitHub OIDC → deploy SA |
+| `scripts/gcloud-login.sh` | Quiet browser ADC login |
+| `scripts/bootstrap-local.sh` | State bucket + first `pulumi up` + WIF GitHub vars |
+| `scripts/store-pulumi-passphrase.sh` | GitHub secret + SM recovery copy |
 | `scripts/sync-secrets.sh` | Push secret payloads to GCP |
 | `SECRETS.md` | What goes where |

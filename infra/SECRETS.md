@@ -1,5 +1,9 @@
 # Secrets & config placement
 
+Public **template** repo: you bring Neon + GCP + GitHub secrets/vars. Do not commit secret values. A private Slack/auth product should keep product secrets in that private repo — not here.
+
+Auth on `main` uses **Google GIS** + app JWT (`AUTH_SECRET` / `GOOGLE_OAUTH_CLIENT_ID`). Clerk is not required; see optional unmerged [PR #14](https://github.com/dakaii/vibegopher/pull/14) only as a reference.
+
 Rule of thumb:
 
 - **GCP Secret Manager** — runtime secrets the Cloud Run service (and later the AI bot) need at request time
@@ -132,12 +136,20 @@ No long-lived GCP JSON keys — deploy uses **Workload Identity Federation**. Th
 
 ## Destroy behavior
 
+```bash
+gh workflow run "Destroy GCP infrastructure" -f confirm=destroy
+# optional: -f destroy_secrets=true
+```
+
 | Action | Result |
 |--------|--------|
 | **Destroy** workflow (default) | Removes Cloud Run, Artifact Registry wiring, deploy/runtime SAs, **and WIF**; **keeps Secret Manager** |
 | **Destroy** with `destroy_secrets=true` | Also destroys Secret Manager secrets in this stack |
+| **Never destroyed by the workflow** | Neon, GCS Pulumi state bucket, GitHub secrets/vars |
 
 After a default destroy, GitHub Actions **cannot** redeploy until you run a local bootstrap `pulumi up` and refresh `GCP_WORKLOAD_IDENTITY_PROVIDER` / `GCP_DEPLOY_SERVICE_ACCOUNT`.
+
+See [`docs/DEPLOY.md`](../docs/DEPLOY.md) § Destroy for the leftover checklist.
 
 ## Syncing secret values
 
