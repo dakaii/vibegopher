@@ -18,13 +18,8 @@ migrate-status:
 migrate-down:
 	docker compose $(COMPOSE_LOCAL_DB) run --rm migrator down
 
-<<<<<<< HEAD
-# Usage: make create-migration NAME=add_something
-=======
 # Prefer `docker compose` (v2 plugin). Legacy `docker-compose` is not used in CI.
-
-# Usage: make create-migration NAME=add_google_sub
->>>>>>> 22dd5e2 (Fix PR review findings and ship demo quality follow-ups)
+# Usage: make create-migration NAME=add_something
 create-migration:
 	@test -n "$(NAME)" || (echo 'Usage: make create-migration NAME=add_something'; exit 1)
 	go run github.com/pressly/goose/v3/cmd/goose@v3.24.3 \
