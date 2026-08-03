@@ -46,7 +46,7 @@ jobs:
       - name: Validate Pulumi backend and project
         run: |
           missing=0
-          for v in GCP_PROJECT_ID PULUMI_BACKEND_URL GCP_WORKLOAD_IDENTITY_PROVIDER GCP_DEPLOY_SERVICE_ACCOUNT; do
+          for v in GCP_PROJECT_ID PULUMI_BACKEND_URL GCP_WORKLOAD_IDENTITY_PROVIDER GCP_DEPLOY_SERVICE_ACCOUNT CORS_ORIGIN; do
             if [ -z "${!v}" ]; then
               echo "Missing repository variable: $v"
               missing=1
@@ -69,6 +69,7 @@ jobs:
           PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
           GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Authenticate to Google Cloud
@@ -89,12 +90,15 @@ jobs:
       - name: Destroy (keep Secret Manager)
         if: ${{ inputs.destroy_secrets == false }}
         working-directory: infra
+        env:
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
         run: |
           pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
           # Stack config YAML is not in git — re-apply required keys like deploy.yml.
           pulumi config set gcp:project "${GCP_PROJECT_ID}"
           pulumi config set vibegopher:region "${GCP_REGION}"
+          pulumi config set vibegopher:corsOrigin "${CORS_ORIGIN}"
           pulumi config set vibegopher:githubOwner "${GITHUB_REPOSITORY_OWNER}"
           pulumi config set vibegopher:githubRepo "${GITHUB_REPOSITORY#*/}"
           pulumi config set vibegopher:protectSecrets true
@@ -106,11 +110,14 @@ jobs:
       - name: Destroy including Secret Manager
         if: ${{ inputs.destroy_secrets == true }}
         working-directory: infra
+        env:
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
         run: |
           pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
           pulumi config set gcp:project "${GCP_PROJECT_ID}"
           pulumi config set vibegopher:region "${GCP_REGION}"
+          pulumi config set vibegopher:corsOrigin "${CORS_ORIGIN}"
           pulumi config set vibegopher:githubOwner "${GITHUB_REPOSITORY_OWNER}"
           pulumi config set vibegopher:githubRepo "${GITHUB_REPOSITORY#*/}"
           echo "WARNING: Unprotecting and destroying Secret Manager resources"
