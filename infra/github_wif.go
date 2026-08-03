@@ -21,11 +21,13 @@ func setupGitHubWorkloadIdentity(ctx *pulumi.Context, cfg stackConfig, apis *ena
 		return nil, nil
 	}
 
+	// Use a vibegopher-specific pool id so we do not collide with other apps
+	// in a shared GCP project that already own a generic "github-actions" pool.
 	pool, err := iam.NewWorkloadIdentityPool(ctx, "github-pool", &iam.WorkloadIdentityPoolArgs{
 		Project:                pulumi.String(cfg.Project),
-		WorkloadIdentityPoolId: pulumi.String("github-actions"),
-		DisplayName:            pulumi.String("GitHub Actions"),
-		Description:            pulumi.String("OIDC identity pool for GitHub Actions deployments"),
+		WorkloadIdentityPoolId: pulumi.String("vibegopher-github"),
+		DisplayName:            pulumi.String("VibeGopher GitHub Actions"),
+		Description:            pulumi.String("OIDC identity pool for vibegopher GitHub Actions deployments"),
 	}, pulumi.DependsOn([]pulumi.Resource{apis.IAM, apis.IAMCreds}))
 	if err != nil {
 		return nil, fmt.Errorf("create WIF pool: %w", err)

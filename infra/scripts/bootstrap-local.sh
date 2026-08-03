@@ -42,6 +42,10 @@ if ! command -v gh >/dev/null 2>&1; then
   echo "error: gh not found (needed to set GitHub variables)" >&2
   exit 1
 fi
+if [[ -z "${PULUMI_CONFIG_PASSPHRASE:-}" ]]; then
+  echo "warning: PULUMI_CONFIG_PASSPHRASE unset — Pulumi may prompt interactively;" >&2
+  echo "  export it (password manager) so CI can use the same value via GitHub Secrets." >&2
+fi
 
 # Verify ADC/user creds without printing identity.
 if ! gcloud auth print-access-token >/dev/null 2>&1; then
@@ -117,9 +121,17 @@ gh variable set GCP_REGION --body "${REGION}"
 gh variable set PULUMI_STACK --body "${STACK}"
 gh variable set CORS_ORIGIN --body "${CORS_ORIGIN}"
 
+if [[ -n "${PULUMI_CONFIG_PASSPHRASE:-}" ]]; then
+  echo "Writing GitHub secret PULUMI_CONFIG_PASSPHRASE (value not printed)…"
+  printf '%s' "${PULUMI_CONFIG_PASSPHRASE}" | gh secret set PULUMI_CONFIG_PASSPHRASE
+else
+  echo "warning: skip GitHub secret PULUMI_CONFIG_PASSPHRASE (env unset)." >&2
+  echo "  Set it before Deploy: printf '%s' '…' | gh secret set PULUMI_CONFIG_PASSPHRASE" >&2
+fi
+
 echo
 echo "ok: bootstrap complete"
 echo "next:"
-echo "  1. Merge the GCS deploy workflow PR (if not already on main)"
+echo "  1. Confirm GitHub secret PULUMI_CONFIG_PASSPHRASE is set"
 echo "  2. Run GitHub Action: Deploy to GCP"
 echo "  3. Optional later: GOOGLE_OAUTH_CLIENT_ID, GEMINI_API_KEY, prod CORS_ORIGIN"

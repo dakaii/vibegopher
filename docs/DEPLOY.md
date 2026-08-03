@@ -13,6 +13,9 @@ State backend: **GCS** (`PULUMI_BACKEND_URL=gs://…`). No Pulumi Cloud token.
 # Browser login (does not print account emails)
 GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID ./infra/scripts/gcloud-login.sh
 
+# Same passphrase you set/confirm for the GCS stack (also saved to GitHub Secrets by bootstrap)
+export PULUMI_CONFIG_PASSPHRASE='…from password manager…'
+
 # Creates/uses private state bucket, pulumi up (no Cloud Run yet),
 # sets WIF GitHub vars, grants deploy SA access to the bucket
 GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID \
@@ -36,6 +39,7 @@ GITHUB_OWNER=YOUR_GH_USER_OR_ORG \
 | `DATABASE_URL` | Neon pooled |
 | `DATABASE_URL_MIGRATE` | Neon direct (non-pooler) |
 | `AUTH_SECRET` | long random string |
+| `PULUMI_CONFIG_PASSPHRASE` | GCS stack config passphrase (password manager + this secret) |
 | `GOOGLE_OAUTH_CLIENT_ID` | optional until SPA auth |
 | `GEMINI_API_KEY` | optional until critic |
 

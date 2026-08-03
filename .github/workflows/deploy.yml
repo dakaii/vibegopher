@@ -23,6 +23,8 @@ env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
   PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
+  # Unlocks encrypted stack config on the GCS backend (not a Pulumi Cloud token).
+  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
   AR_REPO: vibegopher
   IMAGE_NAME: api
   CLOUD_RUN_SERVICE: vibegopher-api
@@ -44,7 +46,7 @@ jobs:
               missing=1
             fi
           done
-          for s in DATABASE_URL AUTH_SECRET; do
+          for s in DATABASE_URL AUTH_SECRET PULUMI_CONFIG_PASSPHRASE; do
             if [ -z "${!s}" ]; then
               echo "Missing repository secret: $s"
               missing=1
@@ -70,6 +72,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_MIGRATE: ${{ secrets.DATABASE_URL_MIGRATE }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
