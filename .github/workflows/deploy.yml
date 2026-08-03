@@ -119,9 +119,10 @@ jobs:
       - name: Set up Pulumi
         uses: pulumi/actions@v6
 
-      # Create/update Secret Manager containers + IAM before syncing payloads.
       # State lives in GCS (vars.PULUMI_BACKEND_URL); auth is WIF → deploy SA (no Pulumi Cloud token).
-      - name: Pulumi up
+      # Phase 1: ensure Secret Manager containers / IAM exist before Cloud Run starts
+      # (production fail-fast rejects placeholder AUTH_SECRET=REPLACE_ME).
+      - name: Pulumi up (infra, Cloud Run off)
         working-directory: infra
         env:
           CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
@@ -137,7 +138,7 @@ jobs:
           pulumi config set vibegopher:githubOwner "${GITHUB_REPOSITORY_OWNER}"
           pulumi config set vibegopher:githubRepo "${GITHUB_REPOSITORY#*/}"
           pulumi config set vibegopher:protectSecrets true
-          pulumi config set vibegopher:enableCloudRun true
+          pulumi config set vibegopher:enableCloudRun false
           pulumi up --yes
 
       - name: Sync runtime secrets into Secret Manager
@@ -150,6 +151,12 @@ jobs:
         run: |
           chmod +x infra/scripts/sync-secrets.sh
           ./infra/scripts/sync-secrets.sh
+
+      - name: Pulumi up (enable Cloud Run)
+        working-directory: infra
+        run: |
+          pulumi config set vibegopher:enableCloudRun true
+          pulumi up --yes
 
       - name: Run database migrations (Neon direct URL)
         env:
