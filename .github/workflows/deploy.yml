@@ -22,6 +22,7 @@ env:
   PULUMI_STACK: ${{ vars.PULUMI_STACK || 'dev' }}
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
   AR_REPO: vibegopher
   IMAGE_NAME: api
   CLOUD_RUN_SERVICE: vibegopher-api
@@ -37,18 +38,25 @@ jobs:
       - name: Validate required GitHub configuration
         run: |
           missing=0
-          for v in GCP_PROJECT_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_DEPLOY_SERVICE_ACCOUNT CORS_ORIGIN; do
+          for v in GCP_PROJECT_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_DEPLOY_SERVICE_ACCOUNT CORS_ORIGIN PULUMI_BACKEND_URL; do
             if [ -z "${!v}" ]; then
               echo "Missing repository variable: $v"
               missing=1
             fi
           done
-          for s in PULUMI_ACCESS_TOKEN DATABASE_URL AUTH_SECRET; do
+          for s in DATABASE_URL AUTH_SECRET; do
             if [ -z "${!s}" ]; then
               echo "Missing repository secret: $s"
               missing=1
             fi
           done
+          case "${PULUMI_BACKEND_URL}" in
+            gs://*) ;;
+            *)
+              echo "PULUMI_BACKEND_URL must be a gs:// bucket URL (GCS Pulumi backend)"
+              missing=1
+              ;;
+          esac
           if [ -z "${DATABASE_URL_MIGRATE}" ]; then
             echo "Warning: DATABASE_URL_MIGRATE unset; migrations will use DATABASE_URL (prefer Neon direct host, not -pooler)"
           fi
@@ -58,7 +66,7 @@ jobs:
           GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_MIGRATE: ${{ secrets.DATABASE_URL_MIGRATE }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
@@ -109,12 +117,13 @@ jobs:
         uses: pulumi/actions@v6
 
       # Create/update Secret Manager containers + IAM before syncing payloads.
+      # State lives in GCS (vars.PULUMI_BACKEND_URL); auth is WIF → deploy SA (no Pulumi Cloud token).
       - name: Pulumi up
         working-directory: infra
         env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
         run: |
+          pulumi login "${PULUMI_BACKEND_URL}"
           pulumi stack select "${PULUMI_STACK}"
           pulumi config set gcp:project "${GCP_PROJECT_ID}"
           pulumi config set vibegopher:region "${GCP_REGION}"
@@ -169,14 +178,13 @@ jobs:
 
       - name: Write deployment summary
         working-directory: infra
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
         run: |
           {
             echo "## Deployed"
             echo ""
             echo "- Image: \`${{ steps.meta.outputs.image_url }}\`"
             echo "- Stack: \`${PULUMI_STACK}\`"
+            echo "- Pulumi backend: \`${PULUMI_BACKEND_URL}\`"
             echo "- Migrations: goose \`up\` via \`DATABASE_URL_MIGRATE\` (direct Neon host)"
             echo "- Cloud Run URI: $(pulumi stack output cloudRunUri)"
             echo "- Secret Manager protected: $(pulumi stack output protectSecrets)"

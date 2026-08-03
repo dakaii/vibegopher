@@ -1,57 +1,65 @@
 # Neon + GCP first deploy checklist
 
-## 1. Neon
+State backend: **GCS** (`PULUMI_BACKEND_URL=gs://…`). No Pulumi Cloud token.
 
-1. Create a Neon project + database.
-2. Copy two connection strings:
-   - **Pooled** → GitHub secret `DATABASE_URL` (and GCP Secret Manager via deploy sync)
-   - **Direct** (no `-pooler` in host) → GitHub secret `DATABASE_URL_MIGRATE`
+## Already done (typical)
 
-## 2. Google OAuth
+- Neon project + GitHub secrets `DATABASE_URL` / `DATABASE_URL_MIGRATE` / `AUTH_SECRET`
+- GitHub vars `GCP_PROJECT_ID`, `GCP_REGION`, `PULUMI_STACK`, `CORS_ORIGIN`
 
-1. Google Cloud Console → OAuth client (Web)
-2. Authorized JS origins: local Vite (`http://localhost:5173`) + production frontend origin
-3. Client ID → GitHub `GOOGLE_OAUTH_CLIENT_ID`, API secret sync, and `frontend/.env` `VITE_GOOGLE_CLIENT_ID`
-
-## 3. Local Pulumi bootstrap (once)
+## 1. One-time local bootstrap
 
 ```bash
-cd infra
-cp Pulumi.dev.yaml.example Pulumi.dev.yaml
-pulumi stack init dev
-pulumi config set gcp:project YOUR_PROJECT_ID
-pulumi config set vibegopher:githubOwner YOUR_GH_USER_OR_ORG
-pulumi config set vibegopher:githubRepo vibegopher
-pulumi config set vibegopher:enableCloudRun false
-# When you later enable Cloud Run, also set:
-# pulumi config set vibegopher:corsOrigin https://your-frontend-origin
-pulumi up
+# Browser login (does not print account emails)
+GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID ./infra/scripts/gcloud-login.sh
+
+# Creates/uses private state bucket, pulumi up (no Cloud Run yet),
+# sets WIF GitHub vars, grants deploy SA access to the bucket
+GCP_PROJECT_ID=YOUR_GCP_PROJECT_ID \
+PULUMI_BACKEND_URL=gs://YOUR_STATE_BUCKET \
+GITHUB_OWNER=YOUR_GH_USER_OR_ORG \
+./infra/scripts/bootstrap-local.sh
 ```
 
-Copy stack outputs into GitHub **variables**:
+## 2. Google OAuth (can wait until after first API deploy)
 
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`
-- `GCP_DEPLOY_SERVICE_ACCOUNT`
-- also set `GCP_PROJECT_ID`, `GCP_REGION`, `PULUMI_STACK`, `CORS_ORIGIN`, `CORS_ORIGIN`
+1. Google Cloud Console → OAuth client (Web)
+2. Authorized JS origins: `http://localhost:5173` + production frontend origin
+3. Client ID → GitHub `GOOGLE_OAUTH_CLIENT_ID` (+ `frontend/.env` `VITE_GOOGLE_CLIENT_ID`)
 
-## 4. GitHub secrets
+## 3. GitHub configuration
+
+### Secrets
 
 | Secret | Notes |
 |--------|--------|
-| `PULUMI_ACCESS_TOKEN` | Pulumi Cloud |
 | `DATABASE_URL` | Neon pooled |
-| `DATABASE_URL_MIGRATE` | Neon direct |
+| `DATABASE_URL_MIGRATE` | Neon direct (non-pooler) |
 | `AUTH_SECRET` | long random string |
-| `GOOGLE_OAUTH_CLIENT_ID` | Web client ID |
-| `GEMINI_API_KEY` | AI critic |
+| `GOOGLE_OAUTH_CLIENT_ID` | optional until SPA auth |
+| `GEMINI_API_KEY` | optional until critic |
 
-## 5. Deploy
+No `PULUMI_ACCESS_TOKEN` when using the GCS backend.
 
-Push to `main` or run **Deploy to GCP**. Flow: image → `pulumi up` → sync secrets → goose migrate → Cloud Run revision.
+### Variables
+
+| Variable | Notes |
+|----------|--------|
+| `GCP_PROJECT_ID` | Target project |
+| `GCP_REGION` | e.g. `us-central1` |
+| `PULUMI_STACK` | e.g. `dev` |
+| `PULUMI_BACKEND_URL` | `gs://YOUR_STATE_BUCKET` |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | from bootstrap |
+| `GCP_DEPLOY_SERVICE_ACCOUNT` | from bootstrap |
+| `CORS_ORIGIN` | SPA origin(s); `http://localhost:5173` OK for local SPA → Cloud Run API |
+
+## 4. Deploy
+
+Push to `main` or run **Deploy to GCP**. Flow: image → `pulumi login gs://…` → `pulumi up` → sync secrets → goose migrate → Cloud Run revision.
 
 Health: `GET https://YOUR_CLOUD_RUN_URL/api/health`
 
-## 6. Frontend
+## 5. Frontend
 
 ```bash
 cd frontend
@@ -62,8 +70,7 @@ npm run dev   # local
 npm run build # static host later (Firebase / GCS+CDN)
 ```
 
-## 7. Critic worker
+## 6. Critic worker
 
 Cloud Run sets `APP_ENV=production`, `CRITIC_WORKER_ENABLED=true`, and `minScale=1` so `@vibe_critic` polls `bot_jobs`.  
-Set repository variable `CORS_ORIGIN` to your SPA origin before deploy (required).  
 Standalone worker: `go run ./cmd/bot` with the same DB + `GEMINI_API_KEY`.
