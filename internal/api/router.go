@@ -19,7 +19,6 @@ func SetupRouter(controllers *controller.Controllers) *mux.Router {
 	authLimit := newIPRateLimiter(5, 10)
 	writeLimit := newIPRateLimiter(2, 5)
 
-	api.Handle("/auth/google", authLimit.middleware(http.HandlerFunc(handlers.GoogleAuth))).Methods("POST")
 	if envvar.PasswordAuthEnabled() {
 		api.Handle("/signup", authLimit.middleware(http.HandlerFunc(handlers.Signup))).Methods("POST")
 		api.Handle("/login", authLimit.middleware(http.HandlerFunc(handlers.Login))).Methods("POST")

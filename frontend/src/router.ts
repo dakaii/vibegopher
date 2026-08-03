@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { isSignedIn } from './auth'
+import { isSignedIn, waitForClerk } from './auth'
 import FeedView from './views/FeedView.vue'
 import LoginView from './views/LoginView.vue'
 
@@ -11,7 +11,8 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  await waitForClerk()
   if (to.name !== 'login' && !isSignedIn()) {
     return { name: 'login', query: { next: to.fullPath } }
   }

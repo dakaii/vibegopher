@@ -29,14 +29,44 @@ func IsProduction() bool {
 	return e == "production" || e == "prod"
 }
 
-// AuthSecret returns the JWT signing secret.
-// Prefer ValidateRuntimeConfig() at process start — do not rely on the weak default in production.
+// AuthSecret returns the JWT signing secret used by password auth (tests/local).
+// Prefer ValidateRuntimeConfig() at process start — do not rely on the weak default when password auth is enabled.
 func AuthSecret() string {
 	secret, exists := os.LookupEnv("AUTH_SECRET")
 	if !exists {
 		secret = "secret_key"
 	}
 	return secret
+}
+
+// ClerkSecretKey returns the Clerk Backend API secret used to verify session JWTs.
+func ClerkSecretKey() string {
+	return strings.TrimSpace(os.Getenv("CLERK_SECRET_KEY"))
+}
+
+// ClerkAuthorizedParties returns origins allowed in the Clerk session JWT azp claim.
+// Prefers CLERK_AUTHORIZED_PARTIES (comma-separated); otherwise uses CORS_ORIGIN when it is not "*".
+func ClerkAuthorizedParties() []string {
+	if raw := strings.TrimSpace(os.Getenv("CLERK_AUTHORIZED_PARTIES")); raw != "" {
+		return splitCSV(raw)
+	}
+	cors := CORSOrigin()
+	if cors == "" || cors == "*" {
+		return nil
+	}
+	return splitCSV(cors)
+}
+
+func splitCSV(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func DatabaseURL() string {
@@ -53,9 +83,6 @@ func PostgresDSN() string {
 	)
 }
 
-func GoogleOAuthClientID() string {
-	return os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
-}
 
 func GeminiAPIKey() string {
 	return os.Getenv("GEMINI_API_KEY")
@@ -156,8 +183,8 @@ func ValidateRuntimeConfig() error {
 		if CORSOrigin() == "" || CORSOrigin() == "*" {
 			return fmt.Errorf("CORS_ORIGIN must be set to explicit frontend origin(s) in production")
 		}
-		if GoogleOAuthClientID() == "" {
-			return fmt.Errorf("GOOGLE_OAUTH_CLIENT_ID is required in production")
+		if ClerkSecretKey() == "" {
+			return fmt.Errorf("CLERK_SECRET_KEY is required in production")
 		}
 		if PasswordAuthEnabled() {
 			return fmt.Errorf("ENABLE_PASSWORD_AUTH must not be enabled in production")
@@ -177,12 +204,13 @@ func ValidateWorkerConfig() error {
 }
 
 func validateSharedSecrets() error {
-	if !IsProduction() {
+	// AUTH_SECRET is only required when password auth issues HS256 JWTs.
+	if !PasswordAuthEnabled() {
 		return nil
 	}
 	secret := AuthSecret()
 	if secret == "" || secret == "secret_key" || len(secret) < 16 {
-		return fmt.Errorf("AUTH_SECRET must be set to a strong value in production (min 16 chars)")
+		return fmt.Errorf("AUTH_SECRET must be set to a strong value when ENABLE_PASSWORD_AUTH is on (min 16 chars)")
 	}
 	return nil
 }

@@ -1,69 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { api } from '../api'
-import { setToken } from '../auth'
+import { SignIn } from '@clerk/vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
-const router = useRouter()
 const route = useRoute()
-const error = ref('')
-const ready = ref(false)
-const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ''
 
-async function handleCredential(response: GoogleCredentialResponse) {
-  error.value = ''
-  try {
-    const result = await api.googleAuth(response.credential)
-    setToken(result.token)
-    const next = typeof route.query.next === 'string' ? route.query.next : '/'
-    await router.replace(next)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Google sign-in failed'
-  }
-}
-
-function renderButton() {
-  if (!window.google || !clientId) {
-    ready.value = true
-    return
-  }
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: handleCredential,
-    ux_mode: 'popup',
-  })
-  const el = document.getElementById('google-btn')
-  if (el) {
-    window.google.accounts.id.renderButton(el, {
-      theme: 'outline',
-      size: 'large',
-      shape: 'pill',
-      text: 'signin_with',
-      width: 320,
-    })
-  }
-  ready.value = true
-}
-
-onMounted(() => {
-  if (!clientId) {
-    ready.value = true
-    return
-  }
-  if (window.google?.accounts.id) {
-    renderButton()
-    return
-  }
-  const timer = window.setInterval(() => {
-    if (window.google?.accounts.id) {
-      window.clearInterval(timer)
-      renderButton()
-    }
-  }, 100)
-  window.setTimeout(() => {
-    window.clearInterval(timer)
-    ready.value = true
-  }, 5000)
+const redirectUrl = computed(() => {
+  const next = typeof route.query.next === 'string' ? route.query.next : '/'
+  return next || '/'
 })
 </script>
 
@@ -76,16 +21,20 @@ onMounted(() => {
         A small square for sharp takes. An AI critic replies — ideas get poked, not people.
       </p>
 
-      <div class="google-slot">
-        <div v-if="clientId" id="google-btn" />
+      <div class="clerk-slot">
+        <SignIn
+          v-if="publishableKey"
+          routing="hash"
+          :fallback-redirect-url="redirectUrl"
+          :force-redirect-url="redirectUrl"
+        />
         <p v-else class="error">
-          Set <code>VITE_GOOGLE_CLIENT_ID</code> in <code>frontend/.env</code>.
+          Set <code>VITE_CLERK_PUBLISHABLE_KEY</code> in <code>frontend/.env</code>.
         </p>
       </div>
 
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-if="ready && clientId" class="muted" style="margin-top: 1rem">
-        Sign in with Google to join the feed. Password signup is legacy/API-only.
+      <p v-if="publishableKey" class="muted" style="margin-top: 1rem">
+        Sign in with Clerk to join the feed. Password signup is legacy/API-only.
       </p>
     </section>
   </div>

@@ -38,7 +38,7 @@ Frontend:
 
 ```bash
 cd frontend
-cp .env.example .env       # VITE_GOOGLE_CLIENT_ID, VITE_API_BASE_URL
+cp .env.example .env       # VITE_CLERK_PUBLISHABLE_KEY; leave VITE_API_BASE_URL empty locally
 npm install && npm run dev # http://localhost:5173
 ```
 
@@ -78,13 +78,13 @@ docker compose up backend    # no local-db profile → no local Postgres
 
 | Variable | Purpose |
 |----------|---------|
-| `AUTH_SECRET` | JWT signing key (strong value required in production) |
+| `CLERK_SECRET_KEY` | Clerk Backend API secret (required in production; verifies SPA session JWTs) |
+| `AUTH_SECRET` | HS256 signing for password auth (tests/local; not required for Clerk prod) |
 | `DATABASE_URL` / `POSTGRES_*` | Database (Neon pooled URL in cloud) |
 | `POSTGRES_SSLMODE` | DSN sslmode when not using `DATABASE_URL` (default `disable`) |
-| `GOOGLE_OAUTH_CLIENT_ID` | Google GIS audience |
 | `GEMINI_API_KEY` | Critic LLM key |
 | `CRITIC_WORKER_ENABLED` | Start in-process worker (`BOT_WORKER_ENABLED` still works) |
-| `CORS_ORIGIN` | Comma-separated SPA origins (required explicit in production) |
+| `CORS_ORIGIN` | Comma-separated SPA origins (required explicit in production; also used as Clerk `azp` allow-list) |
 | `ENABLE_PASSWORD_AUTH` | Expose `/api/signup` + `/api/login` (tests/local only; **forbidden in production**) |
 | `APP_ENV` | `development` \| `test` \| `production` |
 
@@ -99,7 +99,7 @@ docker compose up backend    # no local-db profile → no local Postgres
 
 ## Schema (high level)
 
-- **users** — username, optional password, `google_sub`, `email`, `is_bot`
+- **users** — username, optional password, `clerk_user_id`, legacy `google_sub`, `email`, `is_bot`
 - **posts** / **comments** — content + author
 - **bot_jobs** — async critic queue
 - Seeded bot user: `@vibe_critic` (`is_bot=true`)

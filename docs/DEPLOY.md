@@ -4,7 +4,7 @@ State backend: **GCS** (`PULUMI_BACKEND_URL=gs://…`). No Pulumi Cloud token.
 
 ## Already done (typical)
 
-- Neon project + GitHub secrets `DATABASE_URL` / `DATABASE_URL_MIGRATE` / `AUTH_SECRET`
+- Neon project + GitHub secrets `DATABASE_URL` / `DATABASE_URL_MIGRATE` / `CLERK_SECRET_KEY`
 - GitHub vars `GCP_PROJECT_ID`, `GCP_REGION`, `PULUMI_STACK`, `CORS_ORIGIN`
 
 ## 1. One-time local bootstrap
@@ -27,11 +27,16 @@ GITHUB_OWNER=YOUR_GH_USER_OR_ORG \
 
 If the passphrase was ever pasted into chat or logs, **rotate it** before relying on deploy (`pulumi stack change-secrets-provider passphrase` — details in [`infra/SECRETS.md`](../infra/SECRETS.md)).
 
-## 2. Google OAuth (can wait until after first API deploy)
+## 2. Clerk (required for SPA auth)
 
-1. Google Cloud Console → OAuth client (Web)
-2. Authorized JS origins: `http://localhost:5173` + production frontend origin
-3. Client ID → GitHub `GOOGLE_OAUTH_CLIENT_ID` (+ `frontend/.env` `VITE_GOOGLE_CLIENT_ID`)
+1. Create an application at [Clerk Dashboard](https://dashboard.clerk.com)
+2. **API Keys** → copy **Publishable key** (`pk_…`) and **Secret key** (`sk_…`)
+3. Secret key → GitHub secret `CLERK_SECRET_KEY` (synced to GCP Secret Manager)
+4. Publishable key → frontend `VITE_CLERK_PUBLISHABLE_KEY` (and your static host env)
+5. In Clerk → **Configure → Paths / URLs**, allow:
+   - `http://localhost:5173`
+   - your production frontend origin
+6. Optional providers: Google / Apple under **SSO connections** (handled by Clerk, not this API)
 
 ## 3. GitHub configuration
 
@@ -41,9 +46,9 @@ If the passphrase was ever pasted into chat or logs, **rotate it** before relyin
 |--------|--------|
 | `DATABASE_URL` | Neon pooled |
 | `DATABASE_URL_MIGRATE` | Neon direct (non-pooler) |
-| `AUTH_SECRET` | long random string |
+| `CLERK_SECRET_KEY` | Clerk Backend API secret (`sk_…`) |
 | `PULUMI_CONFIG_PASSPHRASE` | GCS stack config passphrase (also keep recovery copy in GCP SM) |
-| `GOOGLE_OAUTH_CLIENT_ID` | optional until SPA auth |
+| `AUTH_SECRET` | optional (password auth / legacy) |
 | `GEMINI_API_KEY` | optional until critic |
 
 No `PULUMI_ACCESS_TOKEN` when using the GCS backend.
@@ -62,7 +67,7 @@ No `PULUMI_ACCESS_TOKEN` when using the GCS backend.
 
 ## 4. Deploy
 
-Push to `main` or run **Deploy to GCP**. Flow: image → `pulumi login gs://…` → `pulumi up` → sync secrets → goose migrate → Cloud Run revision.
+Push to `main` or run **Deploy to GCP**. Flow: image → `pulumi login gs://…` → sync secrets → `pulumi up` → goose migrate → Cloud Run revision.
 
 Health: `GET https://YOUR_CLOUD_RUN_URL/api/health`
 
@@ -71,8 +76,8 @@ Health: `GET https://YOUR_CLOUD_RUN_URL/api/health`
 ```bash
 cd frontend
 cp .env.example .env
-# VITE_API_BASE_URL=https://YOUR_CLOUD_RUN_URL
-# VITE_GOOGLE_CLIENT_ID=...
+# VITE_API_BASE_URL=              # empty locally (Vite proxy); set to Cloud Run URL for prod builds
+# VITE_CLERK_PUBLISHABLE_KEY=pk_...
 npm run dev   # local
 npm run build # static host later (Firebase / GCS+CDN)
 ```

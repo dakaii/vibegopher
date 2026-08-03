@@ -11,11 +11,13 @@ import (
 // Pulumi owns the secret *containers* and IAM; payloads are synced from
 // GitHub Actions (or gcloud) so values are not stored in Pulumi state.
 var managedSecretNames = []string{
-	"DATABASE_URL",             // Neon pooled connection string
-	"AUTH_SECRET",              // App session/JWT signing secret (if used after Google Auth)
-	"GOOGLE_OAUTH_CLIENT_ID",   // Audience for Google ID token verification
-	"GOOGLE_OAUTH_CLIENT_SECRET", // Only needed if using auth-code exchange (optional)
-	"GEMINI_API_KEY",           // AI bot provider key (omit if using Vertex ADC later)
+	"DATABASE_URL",      // Neon pooled connection string
+	"CLERK_SECRET_KEY",  // Clerk Backend API secret (session JWT verification)
+	"AUTH_SECRET",       // Optional; only needed if ENABLE_PASSWORD_AUTH is used
+	// Legacy Google OAuth secrets — kept so Pulumi does not delete protected SM resources.
+	"GOOGLE_OAUTH_CLIENT_ID",
+	"GOOGLE_OAUTH_CLIENT_SECRET",
+	"GEMINI_API_KEY", // AI bot provider key (omit if using Vertex ADC later)
 }
 
 type appSecrets struct {

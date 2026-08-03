@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, postCursor } from '../api'
-import { clearToken } from '../auth'
+import { clearLegacyToken, signOutClerk } from '../auth'
 import PostItem from '../components/PostItem.vue'
 import { isCriticMuted, setCriticMuted } from '../preferences'
 import type { Post, User } from '../types'
@@ -33,7 +33,8 @@ async function loadInitial() {
     const message = e instanceof Error ? e.message : 'Failed to load feed'
     error.value = message
     if (message.toLowerCase().includes('unauthorized')) {
-      clearToken()
+      clearLegacyToken()
+      await signOutClerk()
       await router.push('/login')
     }
   } finally {
@@ -75,7 +76,8 @@ async function submitPost() {
 }
 
 async function signOut() {
-  clearToken()
+  clearLegacyToken()
+  await signOutClerk()
   await router.push('/login')
 }
 

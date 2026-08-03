@@ -1,6 +1,6 @@
 # VibeGopher web (Vue 3 + TypeScript 7)
 
-Sign in with Google, browse the feed, post, and comment. `@vibe_critic` replies asynchronously from the Go bot worker.
+Sign in with Clerk, browse the feed, post, and comment. `@vibe_critic` replies asynchronously from the Go bot worker.
 
 Tooling:
 
@@ -12,8 +12,8 @@ Tooling:
 
 ```bash
 cp .env.example .env
-# set VITE_GOOGLE_CLIENT_ID (same OAuth client ID as the API)
-# set VITE_API_BASE_URL=http://localhost:8081
+# set VITE_CLERK_PUBLISHABLE_KEY from the Clerk Dashboard
+# leave VITE_API_BASE_URL empty so Vite proxies /api → :8081
 
 npm install
 npm run dev
@@ -27,11 +27,13 @@ npm run typecheck
 npm run build
 ```
 
-## Google Cloud OAuth
+## Clerk
 
-1. Create an OAuth 2.0 Client ID (Web application).
-2. Authorized JavaScript origins: `http://localhost:5173` (and your prod frontend origin).
-3. Use the **Client ID** as both `VITE_GOOGLE_CLIENT_ID` and API `GOOGLE_OAUTH_CLIENT_ID`.
+1. Create a Clerk application at [dashboard.clerk.com](https://dashboard.clerk.com).
+2. Copy the **Publishable key** into `VITE_CLERK_PUBLISHABLE_KEY`.
+3. Put the matching **Secret key** in the API env as `CLERK_SECRET_KEY`.
+4. Allow `http://localhost:5173` (and your prod origin) in the Clerk Dashboard.
+5. Optional: enable Google / Apple SSO connections inside Clerk.
 
 ## Build
 

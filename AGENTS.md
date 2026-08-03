@@ -29,7 +29,7 @@ differences from the documented Docker flow.
 export POSTGRES_HOST=localhost POSTGRES_PORT=5432 POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres \
        POSTGRES_DB=vibegopher_development APP_ENV=development PORT=8081 \
        AUTH_SECRET=dev-secret-key-change-me CORS_ORIGIN=http://localhost:5173 \
-       CRITIC_WORKER_ENABLED=true ENABLE_PASSWORD_AUTH=true HASH_COST=8
+       CLERK_SECRET_KEY=sk_test_... CRITIC_WORKER_ENABLED=true ENABLE_PASSWORD_AUTH=true HASH_COST=8
 go run ./cmd/migrate up      # apply goose migrations (re-run after new migration files)
 go run ./cmd/server          # API on http://localhost:8081
 ```
@@ -40,14 +40,14 @@ go run ./cmd/server          # API on http://localhost:8081
 - `npm --prefix frontend run dev` → `http://localhost:5173` (Vite proxies `/api` → `:8081`).
 - **CORS gotcha:** leave `VITE_API_BASE_URL` **empty/unset** so the SPA calls relative `/api` through the
   Vite proxy (same-origin). The backend does **not** answer CORS preflight (`OPTIONS` → 404), so setting
-  `VITE_API_BASE_URL=http://localhost:8081` (as `frontend/.env.example` does) breaks all SPA API calls. A
-  fresh clone with no `frontend/.env` works because the default base URL is empty.
+  `VITE_API_BASE_URL=http://localhost:8081` breaks all SPA API calls. A fresh clone with no `frontend/.env`
+  works because the default base URL is empty.
 
 ### Auth for local/manual testing
-- The SPA login is Google Sign-In only and needs a real `VITE_GOOGLE_CLIENT_ID`. For local testing without
-  Google OAuth, run the API with `ENABLE_PASSWORD_AUTH=true` and use `POST /api/signup` + `POST /api/login`
-  (see `docs/API.md`). To view the authenticated SPA feed, put the returned JWT in `localStorage` under key
-  `vibegopher_token`, then reload.
+- The SPA uses Clerk (`VITE_CLERK_PUBLISHABLE_KEY` + API `CLERK_SECRET_KEY` from a Clerk dev instance).
+- For API-only testing without Clerk, run with `ENABLE_PASSWORD_AUTH=true` and use `POST /api/signup` +
+  `POST /api/login` (see `docs/API.md`). To view the authenticated SPA feed with a password JWT, put the
+  returned token in `localStorage` under key `vibegopher_token`, then reload.
 
 ### Lint / test / build
 - Backend: `go vet ./...`; unit tests `go test ./internal/... -count=1` (no DB needed).

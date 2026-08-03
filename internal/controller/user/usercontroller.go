@@ -9,26 +9,26 @@ import (
 
 type repository interface {
 	GetExistingUser(username string) (*domain.User, error)
-	GetByGoogleSub(googleSub string) (*domain.User, error)
+	GetByClerkUserID(clerkUserID string) (*domain.User, error)
 	GetByID(id uuid.UUID) (*domain.User, error)
 	CreateUser(user domain.User) (*domain.User, error)
-	UpsertGoogleUser(profile domain.GoogleProfile) (*domain.User, error)
+	UpsertClerkUser(profile domain.ClerkProfile) (*domain.User, error)
 }
 
 type Controller struct {
 	service         repository
-	googleValidator auth.GoogleTokenValidator
+	clerkValidator  auth.ClerkTokenValidator
 }
 
 func InitController(userRepo *userrepo.UserRepo) *Controller {
 	return &Controller{
-		service:         userRepo,
-		googleValidator: auth.NewGoogleTokenValidator(),
+		service:        userRepo,
+		clerkValidator: auth.NewClerkTokenValidator(),
 	}
 }
 
-// WithGoogleValidator overrides the Google token validator (tests).
-func (c *Controller) WithGoogleValidator(v auth.GoogleTokenValidator) *Controller {
-	c.googleValidator = v
+// WithClerkValidator overrides the Clerk token validator (tests).
+func (c *Controller) WithClerkValidator(v auth.ClerkTokenValidator) *Controller {
+	c.clerkValidator = v
 	return c
 }

@@ -5,12 +5,6 @@ export interface User {
   is_bot?: boolean
 }
 
-export interface AuthToken {
-  tokenType: string
-  token: string
-  expiresIn: number
-}
-
 export interface Post {
   id: string
   content: string

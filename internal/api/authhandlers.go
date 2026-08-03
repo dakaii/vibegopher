@@ -25,27 +25,6 @@ type MeResponse struct {
 	IsBot    bool   `json:"is_bot"`
 }
 
-// GoogleAuth handles Google Sign-In (primary auth for the SPA).
-func (h *Handlers) GoogleAuth(w http.ResponseWriter, r *http.Request) {
-	var req domain.GoogleAuthRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-	req.IDToken = strings.TrimSpace(req.IDToken)
-	if req.IDToken == "" {
-		h.writeError(w, "id_token is required", http.StatusBadRequest)
-		return
-	}
-
-	authToken, err := h.controllers.UserController.LoginWithGoogle(r.Context(), req.IDToken)
-	if err != nil {
-		h.writeErr(w, err)
-		return
-	}
-	h.writeJSON(w, authToken, http.StatusOK)
-}
-
 // Signup is demoted password registration (kept for tests / legacy).
 func (h *Handlers) Signup(w http.ResponseWriter, r *http.Request) {
 	var req SignupRequest

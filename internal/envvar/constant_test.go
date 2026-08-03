@@ -64,7 +64,7 @@ func TestValidateRuntimeConfigRejectsPasswordAuthInProd(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("AUTH_SECRET", "a-sufficiently-long-secret")
 	t.Setenv("CORS_ORIGIN", "https://example.com")
-	t.Setenv("GOOGLE_OAUTH_CLIENT_ID", "client.apps.googleusercontent.com")
+	t.Setenv("CLERK_SECRET_KEY", "sk_test_example")
 	t.Setenv("ENABLE_PASSWORD_AUTH", "true")
 	t.Setenv("CRITIC_WORKER_ENABLED", "false")
 	t.Setenv("BOT_WORKER_ENABLED", "")
@@ -76,9 +76,9 @@ func TestValidateRuntimeConfigRejectsPasswordAuthInProd(t *testing.T) {
 
 func TestValidateRuntimeConfigOKInProd(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
-	t.Setenv("AUTH_SECRET", "a-sufficiently-long-secret")
+	t.Setenv("AUTH_SECRET", "")
 	t.Setenv("CORS_ORIGIN", "https://example.com")
-	t.Setenv("GOOGLE_OAUTH_CLIENT_ID", "client.apps.googleusercontent.com")
+	t.Setenv("CLERK_SECRET_KEY", "sk_test_example")
 	t.Setenv("ENABLE_PASSWORD_AUTH", "false")
 	t.Setenv("CRITIC_WORKER_ENABLED", "false")
 	t.Setenv("BOT_WORKER_ENABLED", "")
@@ -88,11 +88,23 @@ func TestValidateRuntimeConfigOKInProd(t *testing.T) {
 	}
 }
 
+func TestValidateRuntimeConfigRequiresClerkInProd(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ORIGIN", "https://example.com")
+	t.Setenv("CLERK_SECRET_KEY", "")
+	t.Setenv("ENABLE_PASSWORD_AUTH", "false")
+	t.Setenv("CRITIC_WORKER_ENABLED", "false")
+
+	if err := ValidateRuntimeConfig(); err == nil {
+		t.Fatal("expected CLERK_SECRET_KEY to be required in production")
+	}
+}
+
 func TestValidateWorkerConfigSkipsAPIOnlySettings(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("AUTH_SECRET", "")
 	t.Setenv("CORS_ORIGIN", "")
-	t.Setenv("GOOGLE_OAUTH_CLIENT_ID", "")
+	t.Setenv("CLERK_SECRET_KEY", "")
 	t.Setenv("GEMINI_API_KEY", "test-key")
 
 	if err := ValidateWorkerConfig(); err != nil {

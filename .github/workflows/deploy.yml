@@ -46,7 +46,7 @@ jobs:
               missing=1
             fi
           done
-          for s in DATABASE_URL AUTH_SECRET PULUMI_CONFIG_PASSPHRASE; do
+          for s in DATABASE_URL CLERK_SECRET_KEY PULUMI_CONFIG_PASSPHRASE; do
             if [ -z "${!s}" ]; then
               echo "Missing repository secret: $s"
               missing=1
@@ -71,6 +71,7 @@ jobs:
           PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_MIGRATE: ${{ secrets.DATABASE_URL_MIGRATE }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
@@ -121,11 +122,12 @@ jobs:
 
       # State lives in GCS (vars.PULUMI_BACKEND_URL); auth is WIF → deploy SA (no Pulumi Cloud token).
       # Sync payloads BEFORE pulumi up so Cloud Run does not boot on REPLACE_ME
-      # placeholders (production rejects weak AUTH_SECRET). Secret containers must
+      # placeholders (production rejects missing CLERK_SECRET_KEY). Secret containers must
       # already exist from local bootstrap (`enableCloudRun=false` once).
       - name: Sync runtime secrets into Secret Manager
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}

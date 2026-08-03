@@ -22,7 +22,7 @@ Include:
 Never commit:
 
 - Real Neon / Postgres URLs
-- `AUTH_SECRET`, Gemini keys, Google OAuth client secrets
+- `AUTH_SECRET`, `CLERK_SECRET_KEY`, Gemini keys, OAuth client secrets
 - Pulumi stack files with encrypted secrets (`infra/Pulumi.*.yaml` except examples)
 - Local `.env` files (`frontend/.env`, root `.env`)
 - Production credentials of any kind
@@ -31,8 +31,8 @@ Local Compose defaults in `config/*.conf` are intentionally fake and for develop
 
 ## Production expectations
 
-- Set a strong `AUTH_SECRET` (≥16 chars; not the sample values)
+- Set `CLERK_SECRET_KEY` from the Clerk Dashboard (never commit it)
 - Set an explicit `CORS_ORIGIN` (never `*` in production)
 - Keep `ENABLE_PASSWORD_AUTH` unset/false in production
-- Prefer Google Sign-In for the SPA
+- Prefer Clerk for the SPA (enable Google/Apple in the Clerk Dashboard as needed)
 - Treat critic link-fetching as untrusted input (SSRF protections exist; still rate-limit externally)

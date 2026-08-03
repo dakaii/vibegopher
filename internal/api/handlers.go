@@ -10,6 +10,7 @@ import (
 	"github.com/dakaii/vibegopher/internal/auth"
 	"github.com/dakaii/vibegopher/internal/controller"
 	"github.com/dakaii/vibegopher/internal/domain"
+	"github.com/dakaii/vibegopher/internal/envvar"
 )
 
 type Handlers struct {
@@ -45,6 +46,19 @@ func (h *Handlers) getCurrentUser(r *http.Request) (domain.User, error) {
 		return domain.User{}, auth.ErrUnauthorized
 	}
 	token := strings.TrimPrefix(authorization, bearerPrefix)
+
+	// Primary: Clerk session JWT (SPA). Password-auth HS256 JWT remains for tests/local.
+	if envvar.ClerkSecretKey() != "" {
+		user, err := h.controllers.UserController.AuthenticateWithClerk(r.Context(), token)
+		if err == nil {
+			return user, nil
+		}
+		if !envvar.PasswordAuthEnabled() {
+			log.Printf("Failed to verify Clerk JWT: %v", err)
+			return domain.User{}, auth.ErrUnauthorized
+		}
+	}
+
 	user, err := auth.VerifyJWT(token)
 	if err != nil {
 		log.Printf("Failed to verify JWT: %v", err)

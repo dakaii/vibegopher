@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dakaii/vibegopher/internal/api"
+	"github.com/dakaii/vibegopher/internal/auth"
 	"github.com/dakaii/vibegopher/internal/controller"
 	"github.com/dakaii/vibegopher/internal/critic"
 	"github.com/dakaii/vibegopher/internal/database"
@@ -22,6 +23,7 @@ func main() {
 	if err := envvar.ValidateRuntimeConfig(); err != nil {
 		log.Fatalf("config: %v", err)
 	}
+	auth.ConfigureClerk()
 
 	db := database.GetDatabase()
 	repos := repository.InitRepositories(db)

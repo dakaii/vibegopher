@@ -5,33 +5,20 @@ Base URL (local): `http://localhost:8081/api`
 Authenticate with:
 
 ```
-Authorization: Bearer <jwt>
+Authorization: Bearer <token>
 ```
 
-`expiresIn` on auth responses is **seconds until expiry** (24h), not a Unix timestamp.
+The SPA sends a **Clerk session JWT**. The API verifies it via Clerk JWKS (`CLERK_SECRET_KEY`) and upserts `users.clerk_user_id` on first request.
+
+Password login responses still include `expiresIn` as **seconds until expiry** (24h), not a Unix timestamp.
 
 ## Auth
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| `POST` | `/auth/google` | no | Body: `{ "id_token": "..." }` — primary SPA login |
 | `POST` | `/signup` | no | Password register — only if `ENABLE_PASSWORD_AUTH=true` |
 | `POST` | `/login` | no | Password login — only if `ENABLE_PASSWORD_AUTH=true` |
 | `GET` | `/me` | yes | Current user (`id`, `username`, `email`, `is_bot`) |
-
-### `POST /auth/google`
-
-```json
-{ "id_token": "google-gis-credential" }
-```
-
-```json
-{
-  "tokenType": "Bearer",
-  "token": "...",
-  "expiresIn": 86400
-}
-```
 
 ### Password auth (dev/tests only)
 

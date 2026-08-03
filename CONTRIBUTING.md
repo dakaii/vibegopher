@@ -16,7 +16,7 @@ Thanks for helping with VibeGopher. This repo is the **public Twitter-style demo
 
    ```bash
    cd frontend
-   cp .env.example .env    # set VITE_GOOGLE_CLIENT_ID
+   cp .env.example .env    # set VITE_CLERK_PUBLISHABLE_KEY
    npm install
    npm run dev             # http://localhost:5173
    ```
@@ -33,7 +33,7 @@ Thanks for helping with VibeGopher. This repo is the **public Twitter-style demo
 - Prefer small, focused changes with clear commit messages.
 - Keep secrets out of git (see [`SECURITY.md`](./SECURITY.md)).
 - Schema changes go through goose SQL in `db/migrations` — do not rely on GORM AutoMigrate.
-- Password `/api/signup` and `/api/login` are for tests/local only (`ENABLE_PASSWORD_AUTH=true`). Production auth is Google Sign-In.
+- Password `/api/signup` and `/api/login` are for tests/local only (`ENABLE_PASSWORD_AUTH=true`). Production SPA auth is Clerk session JWTs.
 - Critic logic lives in `internal/critic`. Persona prompt source of truth: `internal/critic/persona.go`.
 - Frontend: TypeScript + Biome; prefer `user.is_bot` over hard-coding usernames.
 

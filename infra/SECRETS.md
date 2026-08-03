@@ -14,9 +14,9 @@ Pulumi creates Secret Manager **secret containers + IAM**. It does **not** store
 | Secret ID | Purpose | Who reads it |
 |-----------|---------|--------------|
 | `DATABASE_URL` | Neon **pooled** Postgres URL for the API (`…-pooler…` is OK here) | Cloud Run API |
-| `AUTH_SECRET` | App session JWT signing key (required) | Cloud Run API |
-| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth / GIS client ID (token `aud` check) | Cloud Run API |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | Optional; only if you use authorization-code exchange | Cloud Run API |
+| `CLERK_SECRET_KEY` | Clerk Backend API secret (verify SPA session JWTs via JWKS) | Cloud Run API |
+| `AUTH_SECRET` | Optional; HS256 signing for password auth (tests/local only) | Cloud Run API (unused in prod) |
+| `GOOGLE_OAUTH_*` | Legacy unused mounts (kept so protected SM resources are not deleted) | — |
 | `GEMINI_API_KEY` | AI bot LLM key (skip later if you move to Vertex ADC) | Cloud Run / bot worker |
 
 Operator-only (created by `store-pulumi-passphrase.sh`, **not** wired into Cloud Run):
@@ -53,10 +53,11 @@ Set with `pulumi config set` (from `infra/`):
 |------|----------|---------|
 | `DATABASE_URL` | yes | Neon **pooled** URL → synced to GCP SM for Cloud Run |
 | `DATABASE_URL_MIGRATE` | strongly recommended | Neon **direct** (non-pooler) URL for goose; supports session advisory locks |
-| `AUTH_SECRET` | yes | Synced into GCP SM; deploy fails if missing/`REPLACE_ME` |
+| `CLERK_SECRET_KEY` | yes | Synced into GCP SM; deploy fails if missing/`REPLACE_ME` |
 | `PULUMI_CONFIG_PASSPHRASE` | yes | Unlocks encrypted Pulumi stack config on the **GCS** backend (local + CI must match) |
-| `GOOGLE_OAUTH_CLIENT_ID` | optional | Synced if present |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | optional | Synced if present |
+| `AUTH_SECRET` | optional | Only if you use password auth locally; not required for Clerk prod |
+| `GOOGLE_OAUTH_CLIENT_ID` | optional | Legacy; unused by the app |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | optional | Legacy; unused by the app |
 | `GEMINI_API_KEY` | optional | Synced if present |
 
 If `DATABASE_URL_MIGRATE` is unset, deploy falls back to `DATABASE_URL` but **rejects** URLs containing `-pooler`.

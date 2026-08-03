@@ -1,5 +1,5 @@
-import { clearToken, getToken } from './auth'
-import type { ApiErrorBody, AuthToken, Comment, Post, User } from './types'
+import { clearLegacyToken, getAccessToken } from './auth'
+import type { ApiErrorBody, Comment, Post, User } from './types'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
@@ -9,7 +9,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json')
   }
 
-  const token = getToken()
+  const token = await getAccessToken()
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
@@ -20,7 +20,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
 
   if (res.status === 401) {
-    clearToken()
+    clearLegacyToken()
   }
 
   const text = await res.text()
@@ -46,11 +46,6 @@ export function postCursor(post: Post): string {
 }
 
 export const api = {
-  googleAuth: (idToken: string) =>
-    request<AuthToken>('/api/auth/google', {
-      method: 'POST',
-      body: JSON.stringify({ id_token: idToken }),
-    }),
   me: () => request<User>('/api/me'),
   posts: (opts?: { limit?: number; before?: string }) => {
     const params = new URLSearchParams()
